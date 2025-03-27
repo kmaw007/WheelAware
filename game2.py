@@ -20,13 +20,6 @@ TITLE_SCREEN = 0
 GAMEPLAY = 1
 game_state = TITLE_SCREEN
 
-# Store the 2D scene as a background texture
-scene_texture = None
-
-# Function to capture the current 2D scene as a texture
-def capture_scene():
-    global scene_texture
-
 # Function to draw buildings with different colors
 def draw_building(x, y, width, height, color):
     vertices = [
@@ -177,7 +170,7 @@ def draw_title_screen():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Clear both color and depth buffers
 
     # Draw the background scene directly
-    display()  # Instead of using textures, just re-render the scene
+    display() 
 
     # Draw the title text
     render_text("WheelAware: An MS Awareness Game", 100, 500, 48)
@@ -295,16 +288,19 @@ def display():
 
 
 class Character:
-    def __init__(self, x, y, width=30, height=50):
+    def __init__(self, x, y, window_width, window_height, width=30, height=50):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.speed = 5
-        self.jump_power = 10
+        self.jump_power = -10  # Negative because Pygame y-axis is inverted
         self.velocity_y = 0
         self.gravity = 0.5
         self.on_ground = False
+        self.window_width = window_width
+        self.window_height = window_height
+        self.ground_level = window_height - 100  # Adjust based on screen size
 
     def move(self, keys):
         # Left/Right Movement
@@ -313,67 +309,184 @@ class Character:
         if keys[pygame.K_RIGHT]:
             self.x += self.speed
 
+        # Prevent going off-screen
+        self.x = max(0, min(self.x, self.window_width - self.width))
+
         # Jumping
         if keys[pygame.K_SPACE] and self.on_ground:
-            self.velocity_y = -self.jump_power
+            self.velocity_y = self.jump_power
             self.on_ground = False
 
         # Apply gravity
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
-        # Prevent falling through the ground
-        if self.y >= 100:  # Ground level
-            self.y = 100
+        # Collision with ground
+        if self.y >= self.ground_level:
+            self.y = self.ground_level
             self.velocity_y = 0
             self.on_ground = True
 
     def draw(self):
         glColor3f(1, 0, 0)  # Red character
         glBegin(GL_QUADS)
+        glVertex2f(self.x, self.window_height - self.y)  # Adjust for OpenGL coords
+        glVertex2f(self.x + self.width, self.window_height - self.y)
+        glVertex2f(self.x + self.width, self.window_height - (self.y + self.height))
+        glVertex2f(self.x, self.window_height - (self.y + self.height))
+        glEnd()
+
+
+class Scene:
+    def __init__(self, obstacles):
+        self.obstacles = obstacles  # Store obstacles in the scene
+
+    def draw(self):
+        """Draw the scene, including background and obstacles."""
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Clear the screen
+        
+        draw_sky()
+        draw_building(0, 50, 300, 600, (50/255.0, 50/255.0, 50/255.0))  
+        draw_building(450, 50, 300, 400, (50/255.0, 50/255.0, 50/255.0)) 
+        
+
+        # Draw all obstacles in the scene
+        for obstacle in self.obstacles:
+            obstacle.draw()
+
+    def check_collision(self, player):
+        """Check if the player collides with an obstacle."""
+        for obstacle in self.obstacles:
+            if obstacle.collides_with(player):
+                return True
+        return False
+
+class Stair:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 50
+        self.height = 50
+
+    def draw(self):
+        """Draw a simple rectangle for the stair."""
+        glColor3f(0.6, 0.3, 0.1)  # Brown stairs
+        glBegin(GL_QUADS)
         glVertex2f(self.x, self.y)
         glVertex2f(self.x + self.width, self.y)
         glVertex2f(self.x + self.width, self.y + self.height)
         glVertex2f(self.x, self.y + self.height)
-        glEnd()    
+        glEnd()
+
+    def collides_with(self, player):
+        """Check if player's feet are on the stair."""
+        player_bottom = player.y - player.height / 2  # Feet position
+        return (
+            self.x < player.x < self.x + self.width and
+            player_bottom >= self.y and player_bottom <= self.y + self.height
+        )
+
+
+class Ramp:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 80
+        self.height = 30
+
+    def draw(self):
+        """Draw a simple triangle for the ramp."""
+        glColor3f(0.2, 0.6, 0.2)  # Green ramp
+        glBegin(GL_TRIANGLES)
+        glVertex2f(self.x, self.y)
+        glVertex2f(self.x + self.width, self.y)
+        glVertex2f(self.x, self.y + self.height)
+        glEnd()
+
+    def collides_with(self, player):
+        """Check if player is stepping on the ramp."""
+        player_bottom = player.y - player.height / 2
+        return (
+            self.x < player.x < self.x + self.width and
+            player_bottom >= self.y and player_bottom <= self.y + self.height
+        )
+
+
+class BumpyRoad:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 100
+        self.height = 20
+
+    def draw(self):
+        """Draw a simple wavy road."""
+        glColor3f(0.5, 0.5, 0.5)  # Gray road
+        glBegin(GL_LINE_STRIP)
+        for i in range(6):
+            glVertex2f(self.x + i * 20, self.y + (i % 2) * 10)
+        glEnd()
+
+    def collides_with(self, player):
+        """Check if player is stepping on the bumpy road."""
+        player_bottom = player.y - player.height / 2
+        return (
+            self.x < player.x < self.x + self.width and
+            player_bottom >= self.y and player_bottom <= self.y + self.height
+        )
+
+
+class GameScenes:
+    def __init__(self):
+        self.player = Character(50, 100, 800, 600)  # Start at (50, 100)
+        self.current_scene_index = 0  # Start with the first scene
+        self.scenes = [
+            Scene([Stair(200, 50), Ramp(400, 50)]),  # Scene 1 with stairs & ramp
+            Scene([BumpyRoad(250, 50)]),  # Scene 2 with bumpy road
+        ]
+
+    def update(self, keys):
+        self.player.move(keys)
+        
+        # If the player reaches the right edge, switch scenes
+        if self.player.x > 750:
+            self.current_scene_index += 1
+            if self.current_scene_index >= len(self.scenes):
+                self.current_scene_index = 0  # Loop back to the first scene
+            self.player.x = 50  # Reset position to the left side
+
+    def draw(self):
+        self.scenes[self.current_scene_index].draw()  # Draw the current scene
+        self.player.draw()
+        pygame.display.flip()
 
 
 
 def main():
     global game_state
     running = True
-    
-    clock = pygame.time.Clock()  # Limit FPS
-    player = Character(200, 100)  # Start position of the player
+    clock = pygame.time.Clock()
+    game_scene = GameScenes()
 
     while running:
         keys = pygame.key.get_pressed()
-        
+
         if game_state == TITLE_SCREEN:
             draw_title_screen()
             handle_title_screen_events()
         
         elif game_state == GAMEPLAY:
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            
-            # Update player movement
-            player.move(keys)
-
-            # Draw the game scene
-            display()  # Background
-            player.draw()  # Character
-
-            pygame.display.flip()
+            game_scene.update(keys)
+            game_scene.draw()
 
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
 
-        clock.tick(60)  # Keep FPS stable
+
+        clock.tick(60)
 
     pygame.quit()
-
-
 
 if __name__ == "__main__":
     main()
