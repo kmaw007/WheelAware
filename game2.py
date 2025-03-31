@@ -95,9 +95,6 @@ def draw_streetlight(x, y):
 
     glDisable(GL_BLEND)  # Disable transparency after drawing
 
-
-
-
 # Function to draw pavement
 def draw_pavement():
     glBegin(GL_QUADS)
@@ -107,7 +104,6 @@ def draw_pavement():
     glVertex2f(800, 50)
     glVertex2f(0, 50)
     glEnd()
-
 
 # Function to draw pixelated clouds
 def draw_cloud(x, y, size):
@@ -119,7 +115,6 @@ def draw_cloud(x, y, size):
                 rad = math.radians(angle)
                 glVertex2f(x + offset_x + size * 0.5 * math.cos(rad), y + offset_y + size * 0.5 * math.sin(rad))
             glEnd()
-
 
 def draw_sky():
     for i in range(100):  #Create a gradient from a soft blue to a pale orange
@@ -160,12 +155,9 @@ def draw_road():
 
 # Function to render text as an OpenGL texture
 def render_text(text, x, y, size=36):
-    font = pygame.font.Font(None, size)
-    text_surface = font.render(text, True, (255, 255, 255), (0, 0, 0))  # Text color is white
+    font = pygame.font.Font(None, size)  # Use default font
+    text_surface = font.render(text, True, (255, 255, 255), (0, 0, 0))  # White text with black background
     text_data = pygame.image.tostring(text_surface, "RGBA", True)
-    
-    glRasterPos2f(x, y)
-    glDrawPixels(text_surface.get_width(), text_surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, text_data)
     
     glRasterPos2f(x, y)
     glDrawPixels(text_surface.get_width(), text_surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, text_data)
@@ -181,7 +173,6 @@ def draw_title_screen():
 
     # Draw buttons
     glColor3f(0.0, 0.0, 0.0)
-    
     
     # PLAY button
     glBegin(GL_QUADS)
@@ -204,8 +195,6 @@ def draw_title_screen():
     glFlush()  # Force OpenGL to execute all commands
 
     pygame.display.flip()  # Swap buffers once per frame
-
-
 
 def handle_title_screen_events():
     global game_state
@@ -270,8 +259,6 @@ def display():
             draw_window(708 + i * 25, height, 15, 15)
             height = height - 30
 
-     
-   
     # Draw streetlights
     draw_streetlight(50, 50)
     draw_streetlight(150, 50)
@@ -290,7 +277,6 @@ def display():
     draw_cloud(400, 480, 40)
     draw_cloud(600, 450, 35)
     draw_cloud(300, 500, 25)
-
 
 class Character:
     def __init__(self, x, y, window_width, window_height, width=30, height=50):
@@ -354,10 +340,6 @@ class Character:
         glVertex2f(self.x, self.window_height - (self.y + self.height))
         glEnd()
 
-
-
-
-
 class Scene:
     def __init__(self, obstacles):
         self.obstacles = obstacles  # Store obstacles in the scene
@@ -374,17 +356,12 @@ class Scene:
         for obstacle in self.obstacles:
             obstacle.draw()
 
-        # Render dialogue text for the first scene
-        if GameScenes().current_scene_index == 0:  # Check if it's the first scene
-            render_text("Welcome to WheelAware! Use arrow keys to move.", 400, 550, 24)  # Adjust position as needed
-
     def check_collision(self, player):
         """Check if the player collides with an obstacle."""
         for obstacle in self.obstacles:
             if obstacle.collides_with(player):
                 return True
         return False
-
 
 class Stair:
     def __init__(self, x, y, width, height, steps=10, direction="up"): 
@@ -509,7 +486,6 @@ class Ramp:
                 return True
         return False
 
-
 class BumpyRoad:
     def __init__(self, x, y, width, height):  
         self.x = x
@@ -548,77 +524,230 @@ class BumpyRoad:
                 return True
         return False
 
+#Dialgogue Box System
+class DialogueBox:
+    def __init__(self, text, x, y, width=400, height=100):
+        self.text = text
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.visible = True  # Track visibility of the dialogue box
+        self.created_time = pygame.time.get_ticks()  # Record when the box was created
+        self.last_key_time = 0  # Time when the last key was processed
+
+    def draw(self):
+        if self.visible:
+            # Enable transparency for the dialogue box
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            
+            # Draw the box background
+            glColor4f(0.0, 0.0, 0.0, 0.7)  # Semi-transparent black (RGBA)
+            glBegin(GL_QUADS)
+            glVertex2f(self.x, self.y)
+            glVertex2f(self.x + self.width, self.y)
+            glVertex2f(self.x + self.width, self.y + self.height)
+            glVertex2f(self.x, self.y + self.height)
+            glEnd()
+            
+            glDisable(GL_BLEND)  # Disable transparency after drawing
+
+            # Render the text inside the box
+            render_text(self.text, self.x + 10, self.y + self.height - 30, size=24)  # Adjust position for padding
+            
+            # Add a "Press ENTER to continue" prompt
+            render_text("Press ENTER to continue", self.x + 10, self.y + 20, size=18)
+
+    def dismiss(self):
+        self.visible = False  # Hide the dialogue box
+
+class ManageDialogue:
+    def __init__(self):
+        self.dialogue_boxes = []  # List to hold dialogue boxes
+        self.current_dialogue_index = 0  # Track the current dialogue box being displayed
+        self.last_key_press_time = 0  # To prevent multiple key presses
+        self.scene_dialogues = {}  # Dictionary to store dialogues for different scenes
+        self.location_dialogues = {}  # Dictionary to store dialogues for specific locations
+        self.shown_dialogues = set()  # Track already shown dialogues
+        
+        # Add initial dialogue boxes
+        self.add_dialogue_box("welcome", "Welcome to WheelAware!", 200, 450)
+        self.add_dialogue_box("controls", "Use arrow keys to move your character.", 200, 450)
+        self.add_dialogue_box("jump", "Press SPACE to jump.", 200, 450)
+        self.add_dialogue_box("mission", "Experience challenges faced by people with mobility issues.", 200, 450)
+        
+        # Set up scene-specific dialogues
+        self.setup_scene_dialogues()
+        self.setup_location_dialogues()
+
+    def setup_scene_dialogues(self):
+        """Set up dialogues for each scene transition"""
+        self.scene_dialogues[0] = [
+            {"id": "scene0_intro", "text": "Scene 1: Stairs Challenge", "x": 200, "y": 450}
+        ]
+        self.scene_dialogues[1] = [
+            {"id": "scene1_intro", "text": "Scene 2: Ramps and Bumpy Roads", "x": 200, "y": 450},
+            {"id": "scene1_tip", "text": "Try using the ramp instead of jumping over obstacles.", "x": 200, "y": 450}
+        ]
+        # Add more scenes as needed
+
+    def setup_location_dialogues(self):
+        """Set up dialogues for specific locations within scenes"""
+        # Scene 0 locations
+        self.location_dialogues[0] = [
+            {"id": "stairs_approach", "x_range": (200, 300), "text": "Stairs can be difficult for wheelchair users.", "x": 200, "y": 450},
+            {"id": "stairs_top", "x_range": (500, 600), "text": "You made it! Not everyone can climb stairs easily.", "x": 200, "y": 450}
+        ]
+        
+        # Scene 1 locations
+        self.location_dialogues[1] = [
+            {"id": "ramp_approach", "x_range": (50, 150), "text": "Ramps provide accessibility for wheelchair users.", "x": 200, "y": 450},
+            {"id": "bumpy_road", "x_range": (600, 700), "text": "Bumpy roads can be uncomfortable and difficult to navigate.", "x": 200, "y": 450}
+        ]
+        # Add more location triggers as needed
+
+    def add_dialogue_box(self, dialogue_id, text, x, y):
+        """Add a new dialogue box to the list."""
+        new_box = DialogueBox(text, x, y)
+        self.dialogue_boxes.append({"id": dialogue_id, "box": new_box})
+
+    def show_dialogue(self, dialogue_id):
+        """Show a specific dialogue by ID"""
+        # Hide any currently visible dialogue
+        self.dismiss_current_dialogue()
+        
+        # Find and show the requested dialogue
+        for i, dialogue in enumerate(self.dialogue_boxes):
+            if dialogue["id"] == dialogue_id and dialogue_id not in self.shown_dialogues:
+                dialogue["box"].visible = True
+                self.current_dialogue_index = i
+                self.shown_dialogues.add(dialogue_id)
+                return True
+        
+        return False
+
+    def dismiss_current_dialogue(self):
+        """Dismiss the currently visible dialogue"""
+        if 0 <= self.current_dialogue_index < len(self.dialogue_boxes):
+            self.dialogue_boxes[self.current_dialogue_index]["box"].dismiss()
+
+    def check_scene_dialogues(self, scene_index):
+        """Check if there are dialogues to show for the current scene"""
+        if scene_index in self.scene_dialogues:
+            for dialogue_info in self.scene_dialogues[scene_index]:
+                if dialogue_info["id"] not in self.shown_dialogues:
+                    self.add_dialogue_box(dialogue_info["id"], dialogue_info["text"], dialogue_info["x"], dialogue_info["y"])
+                    self.show_dialogue(dialogue_info["id"])
+                    return True
+        return False
+
+    def check_location_dialogues(self, scene_index, player_x):
+        """Check if there are dialogues to show for the current location"""
+        if scene_index in self.location_dialogues:
+            for dialogue_info in self.location_dialogues[scene_index]:
+                x_min, x_max = dialogue_info["x_range"]
+                if x_min <= player_x <= x_max and dialogue_info["id"] not in self.shown_dialogues:
+                    self.add_dialogue_box(dialogue_info["id"], dialogue_info["text"], dialogue_info["x"], dialogue_info["y"])
+                    self.show_dialogue(dialogue_info["id"])
+                    return True
+        return False
+
+    def update(self, events, scene_index, player_x):
+        """Update the game state, including dialogue box management."""
+        current_time = pygame.time.get_ticks()
+        
+        # Always check for location-based dialogues first
+        self.check_location_dialogues(scene_index, player_x)
+        
+        # Process key presses for dialogue boxes
+        for event in events:
+            if event.type == KEYDOWN and event.key == K_RETURN:
+                # Only process if enough time has passed since the last key press (prevents multiple triggers)
+                if current_time - self.last_key_press_time > 300:  # 300ms delay
+                    if self.current_dialogue_index < len(self.dialogue_boxes):
+                        # Dismiss current dialogue box
+                        self.dismiss_current_dialogue()
+                        self.last_key_press_time = current_time
+                        
+                        # If this was an intro dialogue, check for scene dialogues
+                        if len(self.shown_dialogues) <= 4:  # After the 4 initial dialogues
+                            self.check_scene_dialogues(scene_index)
+
+    def draw(self):
+        """Draw the current dialogue box if it exists."""
+        if 0 <= self.current_dialogue_index < len(self.dialogue_boxes):
+            self.dialogue_boxes[self.current_dialogue_index]["box"].draw()
 
 class GameScenes:
     def __init__(self):
         self.player = Character(50, 100, 800, 600)  # Start at (50, 100)
         self.current_scene_index = 0  # Start with the first scene
+        self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
             Scene([Stair(250, 50, 550, 350)]),  # Scene 1
             Scene([Ramp(0, 50, 550, 350), BumpyRoad(600, 50, 550, 7)]),  # Scene 2
         ]
+        self.scene_change = False  # Flag to track scene changes
 
     def update(self, keys):
+        self.previous_scene_index = self.current_scene_index
         current_scene = self.scenes[self.current_scene_index]
         self.player.move(keys, current_scene.obstacles)  # Pass obstacles, not the entire scene
 
         # Scene transition logic
         if self.player.x > 750:
-            self.current_scene_index += 1
-            if self.current_scene_index >= len(self.scenes):
-                self.current_scene_index = 0  # Loop back to the first scene
+            self.current_scene_index = (self.current_scene_index + 1) % len(self.scenes)
             self.player.x = 50  # Reset position to the left side
-
+            self.scene_change = True
+        else:
+            self.scene_change = False
 
     def draw(self):
         """Draw the current scene and player."""
         self.scenes[self.current_scene_index].draw()  # Draw scene
         self.player.draw()  # Draw character
-        pygame.display.flip()
-
-def draw_dialogue_box(text, x, y, width=400, height=100):
-    print("Drawing dialogue box")  # Debugging output
-    # Draw the box background
-    glColor4f(0.0, 0.0, 0.0, 0.7)  # Semi-transparent black (RGBA)
-    glBegin(GL_QUADS)
-    glVertex2f(x, y)
-    glVertex2f(x + width, y)
-    glVertex2f(x + width, y + height)
-    glVertex2f(x, y + height)
-    glEnd()
-
-    # Render the text inside the box
-    render_text(text, x + 10, y + height - 30, size=24)  # Adjust position for padding
 
 def main():
     global game_state
     running = True
     clock = pygame.time.Clock()
     game_scene = GameScenes()
+    game = ManageDialogue()  # Initialize the game with dialogue boxes
 
     while running:
         keys = pygame.key.get_pressed()
+        events = pygame.event.get()  # Collect all events once per frame
+        
+        # Check for quit event in all game states
+        for event in events:
+            if event.type == QUIT:
+                running = False
+                pygame.quit()
+                return
 
         if game_state == TITLE_SCREEN:
             draw_title_screen()
             handle_title_screen_events()
         
-        # In the main game loop
         elif game_state == GAMEPLAY:
-            game_scene.update(keys)  # Update the game state
-            game_scene.draw()        # Draw the current scene (buildings, player, etc.)
+            # Update the game state
+            game_scene.update(keys)
             
-            # Render the dialogue text at the top right
-            render_text("Welcome to WheelAware! Use arrow keys to move.", 600, 570, 24)  # Adjust position as needed
-
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    running = False
-
+            # Check for scene changes - trigger relevant dialogues
+            if game_scene.scene_change:
+                game.check_scene_dialogues(game_scene.current_scene_index)
+            
+            # Update dialogue based on player position and current scene
+            game.update(events, game_scene.current_scene_index, game_scene.player.x)
+            
+            # Draw everything
+            game_scene.draw()        
+            game.draw()
+            
+            pygame.display.flip()  # Update the display
 
         clock.tick(60)
-
-    pygame.quit()
 
 if __name__ == "__main__":
     main()
