@@ -237,7 +237,6 @@ def display():
     # Draw windows
     for i in range(3):
         #buidling 1 (R to L)
-
         height = 310
         while height > 50:
             draw_window(117 + i * 25, height, 15, 15)
@@ -279,7 +278,7 @@ def display():
     draw_cloud(300, 500, 25)
 
 class Character:
-    def __init__(self, x, y, window_width, window_height, width=30, height=50):
+    def __init__(self, x, y, window_width, window_height, width=30, height=50, character_type="walking"):
         self.x = x
         self.y = y
         self.width = width
@@ -292,23 +291,35 @@ class Character:
         self.window_width = window_width
         self.window_height = window_height
         self.ground_level = 50  # Height of the pavement
+        self.character_type = character_type  # "walking" or "wheelchair"
+        self.facing_right = True  # Track which direction the character is facing
+        self.animation_frame = 0  # For walking animation
+        self.animation_time = 0  # Time tracker for animation
 
     def move(self, keys, obstacles):
         # Store original position for collision resolution
         original_x = self.x
         original_y = self.y
         
+        # Update animation time
+        self.animation_time += 1
+        if self.animation_time > 10:  # Change animation frame every 10 game ticks
+            self.animation_frame = (self.animation_frame + 1) % 4  # 4 animation frames
+            self.animation_time = 0
+        
         # Left/Right Movement
         if keys[pygame.K_LEFT]:
             self.x -= self.speed
+            self.facing_right = False
         if keys[pygame.K_RIGHT]:
             self.x += self.speed
+            self.facing_right = True
 
         # Prevent going off-screen
         self.x = max(0, min(self.x, self.window_width - self.width))
 
-        # Jumping
-        if keys[pygame.K_SPACE] and self.on_ground:
+        # Jumping - only allowed for walking character
+        if self.character_type == "walking" and keys[pygame.K_SPACE] and self.on_ground:
             self.velocity_y = self.jump_power
             self.on_ground = False
 
@@ -332,12 +343,336 @@ class Character:
             self.on_ground = True
 
     def draw(self):
-        glColor3f(1, 0, 0)  # Red character
+        if self.character_type == "walking":
+            self.draw_pixelated_character()
+        elif self.character_type == "wheelchair":
+            self.draw_wheelchair_character()
+    
+    def draw_pixelated_character(self):
+        # Create a pixelated human character instead of a red block
+        
+        # Adjust OpenGL coordinates for drawing
+        char_x = self.x
+        char_y = self.window_height - self.y - self.height
+        
+        # Head (slightly darker skin tone)
+        glColor3f(0.9, 0.75, 0.65)  # Skin color
         glBegin(GL_QUADS)
-        glVertex2f(self.x, self.window_height - self.y)
-        glVertex2f(self.x + self.width, self.window_height - self.y)
-        glVertex2f(self.x + self.width, self.window_height - (self.y + self.height))
-        glVertex2f(self.x, self.window_height - (self.y + self.height))
+        glVertex2f(char_x + 10, char_y + self.height - 5)  # Bottom left
+        glVertex2f(char_x + self.width - 10, char_y + self.height - 5)  # Bottom right
+        glVertex2f(char_x + self.width - 10, char_y + self.height)  # Top right
+        glVertex2f(char_x + 10, char_y + self.height)  # Top left
+        glEnd()
+        
+        # Body (shirt)
+        glColor3f(0.2, 0.4, 0.8)  # Blue shirt
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 7, char_y + self.height - 20)  # Bottom left
+        glVertex2f(char_x + self.width - 7, char_y + self.height - 20)  # Bottom right
+        glVertex2f(char_x + self.width - 7, char_y + self.height - 5)  # Top right
+        glVertex2f(char_x + 7, char_y + self.height - 5)  # Top left
+        glEnd()
+        
+        # Legs (pants)
+        glColor3f(0.1, 0.1, 0.5)  # Dark blue pants
+        
+        # Left leg
+        glBegin(GL_QUADS)
+        leg_offset = 5 if (self.animation_frame % 2 == 0) else 3
+        glVertex2f(char_x + 10, char_y)  # Bottom left
+        glVertex2f(char_x + 15, char_y)  # Bottom right
+        glVertex2f(char_x + 15, char_y + self.height - 20 - leg_offset)  # Top right
+        glVertex2f(char_x + 10, char_y + self.height - 20)  # Top left
+        glEnd()
+        
+        # Right leg
+        glBegin(GL_QUADS)
+        leg_offset = 3 if (self.animation_frame % 2 == 0) else 5
+        glVertex2f(char_x + self.width - 15, char_y)  # Bottom left
+        glVertex2f(char_x + self.width - 10, char_y)  # Bottom right
+        glVertex2f(char_x + self.width - 10, char_y + self.height - 20 - leg_offset)  # Top right
+        glVertex2f(char_x + self.width - 15, char_y + self.height - 20)  # Top left
+        glEnd()
+        
+        # Arms
+        glColor3f(0.2, 0.4, 0.8)  # Same as shirt
+        
+        # Left arm
+        arm_swing = math.sin(self.animation_time * 0.2) * 3
+        arm_y_offset = 0 if self.on_ground else -5  # Raise arms when jumping
+        glBegin(GL_QUADS)
+        if self.facing_right:
+            glVertex2f(char_x + 5, char_y + self.height - 18 + arm_swing)
+            glVertex2f(char_x + 8, char_y + self.height - 18 + arm_swing)
+            glVertex2f(char_x + 8, char_y + self.height - 8 + arm_y_offset)
+            glVertex2f(char_x + 5, char_y + self.height - 8 + arm_y_offset)
+        else:
+            glVertex2f(char_x + 5, char_y + self.height - 18 - arm_swing)
+            glVertex2f(char_x + 8, char_y + self.height - 18 - arm_swing)
+            glVertex2f(char_x + 8, char_y + self.height - 8 + arm_y_offset)
+            glVertex2f(char_x + 5, char_y + self.height - 8 + arm_y_offset)
+        glEnd()
+        
+        # Right arm
+        glBegin(GL_QUADS)
+        if self.facing_right:
+            glVertex2f(char_x + self.width - 8, char_y + self.height - 18 - arm_swing)
+            glVertex2f(char_x + self.width - 5, char_y + self.height - 18 - arm_swing)
+            glVertex2f(char_x + self.width - 5, char_y + self.height - 8 + arm_y_offset)
+            glVertex2f(char_x + self.width - 8, char_y + self.height - 8 + arm_y_offset)
+        else:
+            glVertex2f(char_x + self.width - 8, char_y + self.height - 18 + arm_swing)
+            glVertex2f(char_x + self.width - 5, char_y + self.height - 18 + arm_swing)
+            glVertex2f(char_x + self.width - 5, char_y + self.height - 8 + arm_y_offset)
+            glVertex2f(char_x + self.width - 8, char_y + self.height - 8 + arm_y_offset)
+        glEnd()
+        
+        # Eyes
+        glColor3f(0.1, 0.1, 0.1)  # Black eyes
+        eye_x = char_x + 18 if self.facing_right else char_x + 12
+        glPointSize(2.0)
+        glBegin(GL_POINTS)
+        glVertex2f(eye_x, char_y + self.height - 3)
+        glEnd()
+    
+    def draw_wheelchair_character(self):
+        # Draw the same pixelated character but sitting in a wheelchair
+        char_x = self.x
+        char_y = self.window_height - self.y - self.height
+        
+        # First draw the wheelchair (under the character)
+        self.draw_wheelchair(char_x, char_y)
+        
+        # Draw the seated character (adjusted position to sit in the wheelchair)
+        # The character will be slightly smaller and positioned to look like they're sitting
+        
+        # Head (slightly darker skin tone)
+        glColor3f(0.9, 0.75, 0.65)  # Skin color
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 10, char_y + self.height - 10)  # Bottom left
+        glVertex2f(char_x + self.width - 10, char_y + self.height - 10)  # Bottom right
+        glVertex2f(char_x + self.width - 10, char_y + self.height - 5)  # Top right
+        glVertex2f(char_x + 10, char_y + self.height - 5)  # Top left
+        glEnd()
+        
+        # Body (shirt) - shortened to look seated
+        glColor3f(0.2, 0.4, 0.8)  # Blue shirt
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 7, char_y + self.height - 25)  # Bottom left
+        glVertex2f(char_x + self.width - 7, char_y + self.height - 25)  # Bottom right
+        glVertex2f(char_x + self.width - 7, char_y + self.height - 10)  # Top right
+        glVertex2f(char_x + 7, char_y + self.height - 10)  # Top left
+        glEnd()
+        
+        # Legs (pants) - bent to look seated
+        glColor3f(0.1, 0.1, 0.5)  # Dark blue pants
+        
+        # Left leg - bent at knee
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 10, char_y + 5)  # Foot
+        glVertex2f(char_x + 15, char_y + 5)  # Foot
+        glVertex2f(char_x + 15, char_y + self.height - 25)  # Hip
+        glVertex2f(char_x + 10, char_y + self.height - 25)  # Hip
+        glEnd()
+        
+        # Right leg - bent at knee
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + self.width - 15, char_y + 5)  # Foot
+        glVertex2f(char_x + self.width - 10, char_y + 5)  # Foot
+        glVertex2f(char_x + self.width - 10, char_y + self.height - 25)  # Hip
+        glVertex2f(char_x + self.width - 15, char_y + self.height - 25)  # Hip
+        glEnd()
+        
+        # Arms - on wheelchair
+        glColor3f(0.2, 0.4, 0.8)  # Same as shirt
+        
+        # Left arm on wheelchair
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 5, char_y + self.height - 25)  # Shoulder
+        glVertex2f(char_x + 8, char_y + self.height - 25)  # Shoulder
+        glVertex2f(char_x + 8, char_y + self.height - 15)  # Hand on wheel
+        glVertex2f(char_x + 5, char_y + self.height - 15)  # Hand on wheel
+        glEnd()
+        
+        # Right arm on wheelchair
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + self.width - 8, char_y + self.height - 25)  # Shoulder
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Shoulder
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 15)  # Hand on wheel
+        glVertex2f(char_x + self.width - 8, char_y + self.height - 15)  # Hand on wheel
+        glEnd()
+        
+        # Eyes
+        glColor3f(0.1, 0.1, 0.1)  # Black eyes
+        eye_x = char_x + 18 if self.facing_right else char_x + 12
+        glPointSize(2.0)
+        glBegin(GL_POINTS)
+        glVertex2f(eye_x, char_y + self.height - 7)
+        glEnd()
+    
+    def draw_wheelchair(self, x, y):
+        """Draw a more realistic wheelchair."""
+        # Dimensions
+        wheel_radius = self.width * 0.35
+        chair_width = self.width * 0.9
+        
+        # Wheels (larger, more detailed)
+        wheel_centers = [
+            (x + wheel_radius * 0.8, y + wheel_radius * 1.2),  # Left wheel
+            (x + chair_width - wheel_radius * 0.8, y + wheel_radius * 1.2)  # Right wheel
+        ]
+        
+        # Draw the wheels
+        for wheel_center in wheel_centers:
+            # Main wheel (black tire)
+            glColor3f(0.1, 0.1, 0.1)  # Black
+            glBegin(GL_TRIANGLE_FAN)
+            glVertex2f(*wheel_center)  # Center
+            for angle in range(0, 360, 10):
+                rad_angle = math.radians(angle)
+                glVertex2f(wheel_center[0] + wheel_radius * math.cos(rad_angle), 
+                          wheel_center[1] + wheel_radius * math.sin(rad_angle))
+            glEnd()
+            
+            # Inner wheel (silver/metallic)
+            glColor3f(0.7, 0.7, 0.7)  # Silver
+            glBegin(GL_TRIANGLE_FAN)
+            glVertex2f(*wheel_center)  # Center
+            for angle in range(0, 360, 10):
+                rad_angle = math.radians(angle)
+                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
+                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
+            glEnd()
+            
+            # Spokes
+            glColor3f(0.8, 0.8, 0.8)  # Light silver
+            glLineWidth(1.5)
+            glBegin(GL_LINES)
+            for angle in range(0, 360, 30):
+                rad_angle = math.radians(angle)
+                glVertex2f(wheel_center[0], wheel_center[1])  # Center
+                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
+                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
+            glEnd()
+            
+            # Wheel rim highlight
+            glColor3f(0.9, 0.9, 0.9)  # Almost white
+            glLineWidth(1.0)
+            glBegin(GL_LINE_LOOP)
+            for angle in range(0, 360, 10):
+                rad_angle = math.radians(angle)
+                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
+                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
+            glEnd()
+            
+            # Hand rim
+            glColor3f(0.5, 0.5, 0.5)  # Gray
+            glLineWidth(2.0)
+            glBegin(GL_LINE_LOOP)
+            for angle in range(0, 360, 10):
+                rad_angle = math.radians(angle)
+                glVertex2f(wheel_center[0] + wheel_radius * 0.7 * math.cos(rad_angle), 
+                          wheel_center[1] + wheel_radius * 0.7 * math.sin(rad_angle))
+            glEnd()
+        
+        # Draw small front casters (small wheels)
+        caster_radius = wheel_radius * 0.25
+        caster_centers = [
+            (x + wheel_radius * 0.8, y + self.height * 0.2),  # Left caster
+            (x + chair_width - wheel_radius * 0.8, y + self.height * 0.2)  # Right caster
+        ]
+        
+        for caster_center in caster_centers:
+            # Caster wheel
+            glColor3f(0.3, 0.3, 0.3)  # Dark gray
+            glBegin(GL_TRIANGLE_FAN)
+            glVertex2f(*caster_center)  # Center
+            for angle in range(0, 360, 15):
+                rad_angle = math.radians(angle)
+                glVertex2f(caster_center[0] + caster_radius * math.cos(rad_angle), 
+                          caster_center[1] + caster_radius * math.sin(rad_angle))
+            glEnd()
+            
+            # Caster fork
+            glColor3f(0.5, 0.5, 0.5)  # Gray
+            glLineWidth(1.5)
+            glBegin(GL_LINES)
+            glVertex2f(caster_center[0], caster_center[1])  # Center
+            glVertex2f(caster_center[0], caster_center[1] + caster_radius * 2)  # Up to frame
+            glEnd()
+        
+        # Chair frame
+        frame_color = (0.3, 0.3, 0.8)  # Blue frame
+        
+        # Seat
+        glColor3f(*frame_color)
+        glBegin(GL_QUADS)
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.8)  # Back left
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.8)  # Back right
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.0)  # Front right
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.0)  # Front left
+        glEnd()
+        
+        # Backrest
+        glBegin(GL_QUADS)
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.8)  # Bottom left
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.8)  # Bottom right
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 3.0)  # Top right
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 3.0)  # Top left
+        glEnd()
+        
+        # Footrests
+        glColor3f(0.4, 0.4, 0.4)  # Dark gray
+        glBegin(GL_QUADS)
+        # Left footrest
+        glVertex2f(x + wheel_radius * 0.5, y + self.height * 0.3)  # Bottom left
+        glVertex2f(x + wheel_radius * 1.0, y + self.height * 0.3)  # Bottom right
+        glVertex2f(x + wheel_radius * 1.0, y + self.height * 0.4)  # Top right
+        glVertex2f(x + wheel_radius * 0.5, y + self.height * 0.4)  # Top left
+        glEnd()
+        
+        glBegin(GL_QUADS)
+        # Right footrest
+        glVertex2f(x + chair_width - wheel_radius * 1.0, y + self.height * 0.3)  # Bottom left
+        glVertex2f(x + chair_width - wheel_radius * 0.5, y + self.height * 0.3)  # Bottom right
+        glVertex2f(x + chair_width - wheel_radius * 0.5, y + self.height * 0.4)  # Top right
+        glVertex2f(x + chair_width - wheel_radius * 1.0, y + self.height * 0.4)  # Top left
+        glEnd()
+        
+        # Armrests
+        glColor3f(*frame_color)
+        # Left armrest
+        glBegin(GL_QUADS)
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 2.2)  # Bottom left
+        glVertex2f(x + wheel_radius * 0.9, y + wheel_radius * 2.2)  # Bottom right
+        glVertex2f(x + wheel_radius * 0.9, y + wheel_radius * 2.4)  # Top right
+        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 2.4)  # Top left
+        glEnd()
+        
+        # Right armrest
+        glBegin(GL_QUADS)
+        glVertex2f(x + chair_width - wheel_radius * 0.9, y + wheel_radius * 2.2)  # Bottom left
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 2.2)  # Bottom right
+        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 2.4)  # Top right
+        glVertex2f(x + chair_width - wheel_radius * 0.9, y + wheel_radius * 2.4)  # Top left
+        glEnd()
+        
+        # Push handles
+        glColor3f(0.2, 0.2, 0.2)  # Dark gray
+        # Left handle
+        glBegin(GL_QUADS)
+        glVertex2f(x + wheel_radius * 0.5, y + wheel_radius * 3.0)  # Bottom
+        glVertex2f(x + wheel_radius * 0.6, y + wheel_radius * 3.0)  # Bottom
+        glVertex2f(x + wheel_radius * 0.6, y + wheel_radius * 3.3)  # Top
+        glVertex2f(x + wheel_radius * 0.5, y + wheel_radius * 3.3)  # Top
+        glEnd()
+        
+        # Right handle
+        glBegin(GL_QUADS)
+        glVertex2f(x + chair_width - wheel_radius * 0.6, y + wheel_radius * 3.0)  # Bottom
+        glVertex2f(x + chair_width - wheel_radius * 0.5, y + wheel_radius * 3.0)  # Bottom
+        glVertex2f(x + chair_width - wheel_radius * 0.5, y + wheel_radius * 3.3)  # Top
+        glVertex2f(x + chair_width - wheel_radius * 0.6, y + wheel_radius * 3.3)  # Top
         glEnd()
 
 class Scene:
@@ -345,23 +680,18 @@ class Scene:
         self.obstacles = obstacles  # Store obstacles in the scene
 
     def draw(self):
-        """Draw the scene, including background and obstacles."""
+        """Draw the scene's background"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Clear the screen
         
         draw_sky()
         draw_building(0, 50, 300, 600, (50/255.0, 50/255.0, 50/255.0))  
         draw_building(450, 50, 300, 400, (50/255.0, 50/255.0, 50/255.0)) 
+        draw_pavement()
         
         # Draw all obstacles in the scene
         for obstacle in self.obstacles:
             obstacle.draw()
 
-    def check_collision(self, player):
-        """Check if the player collides with an obstacle."""
-        for obstacle in self.obstacles:
-            if obstacle.collides_with(player):
-                return True
-        return False
 
 class Stair:
     def __init__(self, x, y, width, height, steps=10, direction="up"): 
@@ -395,24 +725,32 @@ class Stair:
                 glVertex2f(step_x, step_y)  # Top left of the filled area
                 glEnd()
             elif self.direction == "down":
-                step_y = self.y + self.height - (i + 1) * self.step_height  # Move down for each step
+                step_y = self.y + (self.steps - i - 1) * self.step_height  # Move down for each step
                 # Draw the filled area under the step
                 glBegin(GL_QUADS)
                 glColor3f(*base_color)
-                glVertex2f(step_x, step_y + self.step_height)  # Bottom left of the filled area
-                glVertex2f(step_x + self.step_width, step_y + self.step_height)  # Bottom right of the filled area
-                glVertex2f(step_x + self.step_width, self.y + self.height)  # Top right of the filled area
-                glVertex2f(step_x, self.y + self.height)  # Top left of the filled area
+                glVertex2f(step_x, self.y)  # Bottom left of the filled area
+                glVertex2f(step_x + self.step_width, self.y)  # Bottom right of the filled area
+                glVertex2f(step_x + self.step_width, step_y)  # Top right of the filled area
+                glVertex2f(step_x, step_y)  # Top left of the filled area
                 glEnd()
 
             # Draw the step as a filled rectangle
             glBegin(GL_QUADS)
             glColor3f(*base_color)
+            
+            if self.direction == "up":
+                step_y = self.y + (i * self.step_height)
+            else:  # direction == "down"
+                step_y = self.y + (self.steps - i - 1) * self.step_height
+                
             glVertex2f(step_x, step_y)  # Bottom left
             glVertex2f(step_x + self.step_width, step_y)  # Bottom right
             glVertex2f(step_x + self.step_width, step_y + self.step_height)  # Top right
             glVertex2f(step_x, step_y + self.step_height)  # Top left
             glEnd()
+
+
 
     def collides_with(self, player):
         # Convert character coordinates to OpenGL coordinates
@@ -449,84 +787,196 @@ class Stair:
         return False
 
 class Ramp:
-    def __init__(self, x, y, width, height): 
+    def __init__(self, x, y, width, height, incline=True):  
         self.x = x
         self.y = y
         self.width = width
         self.height = height
+        self.incline = incline  # True = Incline, False = Decline
 
     def draw(self):
-        """Draw a simple triangle for the ramp."""
-        glColor3f(0.2, 0.6, 0.2)  # Green ramp
+        """Draw the ramp as a triangle with incline or decline."""
+        glColor3f(0.6, 0.3, 0.1)  
         glBegin(GL_TRIANGLES)
-        glVertex2f(self.x, self.y)
-        glVertex2f(self.x + self.width, self.y)
-        glVertex2f(self.x, self.y + self.height)
+        if self.incline:
+            glVertex2f(self.x, self.y)  # Bottom-left
+            glVertex2f(self.x + self.width, self.y + self.height)  # Top-right
+            glVertex2f(self.x + self.width, self.y)  # Bottom-right
+        else:
+            glVertex2f(self.x, self.y + self.height)  # Top-left
+            glVertex2f(self.x + self.width, self.y)  # Bottom-right
+            glVertex2f(self.x, self.y)  # Bottom-left
         glEnd()
 
     def collides_with(self, player):
-        # Convert character position to OpenGL coordinates
+        """Handles player collision with the ramp."""
         char_x = player.x
-        char_bottom = player.window_height - (player.y + player.height)  # Bottom of character in OpenGL coords
-        
-        # Check if character is horizontally within the ramp
-        if char_x + player.width > self.x and char_x < self.x + self.width:
-            # Calculate the height of the ramp at the character's position
-            # For a triangular ramp, the height increases linearly from right to left
-            # (since the triangle goes from bottom-left to top-left to bottom-right)
-            progress = 1.0 - min(1.0, max(0, (char_x - self.x) / self.width))
+        char_bottom = player.window_height - (player.y + player.height)  
+
+        # Check if character is within the horizontal range of the ramp
+        if self.x <= char_x <= self.x + self.width:
+            # Calculate ramp height at player's position
+            progress = (char_x - self.x) / self.width  
+            if not self.incline:
+                progress = 1 - progress  # Flip calculation for declining ramps
+
             ramp_height_at_position = self.y + progress * self.height
-            
-            # If character's bottom is at or below the ramp height
+
+            # If the character's bottom is at or below the ramp height
             if char_bottom <= ramp_height_at_position:
-                # Position the character on top of the ramp
                 player.y = player.window_height - ramp_height_at_position - player.height
                 player.velocity_y = 0
                 player.on_ground = True
                 return True
         return False
 
+
 class BumpyRoad:
     def __init__(self, x, y, width, height):  
         self.x = x
         self.y = y
         self.width = width
-        self.height = height  
-
+        self.height = height
+        self.bumps = 12  # Number of bumps
+        self.bump_width = width / self.bumps
+        
     def draw(self):
-        """Draw a simple wavy road."""
-        glColor3f(0.5, 0.5, 0.5)  # Gray road
-        glBegin(GL_LINE_STRIP)
-        for i in range(6):
-            glVertex2f(self.x + i * 20, self.y + (i % 2) * 10)
+        """Draw a realistic-looking bumpy road with 3D effect."""
+        # Draw the base road
+        glBegin(GL_QUADS)
+        glColor3f(0.3, 0.3, 0.3)  # Dark gray for the road base
+        glVertex2f(self.x, self.y)
+        glVertex2f(self.x + self.width, self.y)
+        glVertex2f(self.x + self.width, self.y + self.height/3)  # Lower height for base
+        glVertex2f(self.x, self.y + self.height/3)
         glEnd()
+        
+        # Draw individual bumps
+        for i in range(self.bumps):
+            bump_x = self.x + i * self.bump_width
+            
+            # Vary the bump heights slightly for more natural look
+            bump_height = self.height * (0.5 + 0.3 * math.sin(i * 0.8))
+            
+            # Draw the bump with shading
+            glBegin(GL_QUADS)
+            
+            # Top of the bump (lighter color)
+            glColor3f(0.5, 0.5, 0.5)  # Medium gray for top
+            glVertex2f(bump_x, self.y + self.height/3)
+            glVertex2f(bump_x + self.bump_width, self.y + self.height/3)
+            glVertex2f(bump_x + self.bump_width, self.y + bump_height)
+            glVertex2f(bump_x, self.y + bump_height)
+            
+            glEnd()
+            
+            # Draw highlight on top of bump
+            glBegin(GL_QUADS)
+            glColor3f(0.6, 0.6, 0.6)  # Light gray for highlight
+            
+            highlight_width = self.bump_width * 0.7
+            highlight_x = bump_x + (self.bump_width - highlight_width) / 2
+            
+            glVertex2f(highlight_x, self.y + bump_height * 0.9)
+            glVertex2f(highlight_x + highlight_width, self.y + bump_height * 0.9)
+            glVertex2f(highlight_x + highlight_width, self.y + bump_height)
+            glVertex2f(highlight_x, self.y + bump_height)
+            glEnd()
+            
+            # Add crack details for realism
+            if i % 3 == 0:  # Add a crack every few bumps
+                glBegin(GL_LINES)
+                glColor3f(0.1, 0.1, 0.1)  # Dark color for cracks
+                
+                start_x = bump_x + self.bump_width * 0.3
+                end_x = bump_x + self.bump_width * 0.7
+                crack_y = self.y + bump_height * 0.7
+                
+                glVertex2f(start_x, crack_y)
+                glVertex2f(end_x, crack_y + self.height * 0.1)
+                glEnd()
 
     def collides_with(self, player):
         # Convert character position to OpenGL coordinates
         char_x = player.x
-        char_bottom = player.window_height - (player.y + player.height)  # Bottom of character in OpenGL coords
+        char_bottom = player.window_height - (player.y + player.height)
         
         # Check if character is horizontally within the bumpy road
         if char_x + player.width > self.x and char_x < self.x + self.width:
-            # Calculate which segment of the bumpy road the character is over
-            segment_width = 20  # Each bump segment is 20 wide
-            segment_index = int((char_x - self.x) / segment_width)
+            # Calculate which bump the character is over
+            bump_index = int((char_x - self.x) / self.bump_width)
+            bump_index = min(bump_index, self.bumps - 1)  # Ensure index is in range
             
-            # Calculate the height at this segment (alternating up/down by 10 pixels)
-            bump_height = self.y + (segment_index % 2) * 10
+            # Calculate bump height at this position (using same formula as in draw)
+            bump_x = self.x + bump_index * self.bump_width
+            bump_height = self.height * (0.5 + 0.3 * math.sin(bump_index * 0.8))
+            bump_y = self.y + bump_height
             
             # Character is colliding if its bottom is at or below the bump height
-            if char_bottom <= bump_height + self.height:
+            if char_bottom <= bump_y:
                 # Position the character on top of the bump
-                player.y = player.window_height - (bump_height + self.height) - player.height
+                player.y = player.window_height - bump_y - player.height
+                player.velocity_y = 0
+                player.on_ground = True
+                
+                # Add a small bumping effect when walking
+                if player.velocity_y == 0:
+                    # Small random up/down movement when on bumpy road
+                    player.y += math.sin(pygame.time.get_ticks() * 0.01) * 1.5
+                
+                return True
+        return False
+    
+class Pillar:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    def draw(self):
+        """Draws the pillar."""
+        """Draws a rectangular pillar as an obstacle."""
+        glColor3f(0.6, 0.3, 0.1)  # Brownish pillar color
+        glBegin(GL_QUADS)
+        glVertex2f(self.x, self.y)                      # Bottom-left
+        glVertex2f(self.x + self.width, self.y)               # Bottom-right
+        glVertex2f(self.x + self.width, self.y + self.height)      # Top-right
+        glVertex2f(self.x, self.y + self.height)              # Top-left
+        glEnd()
+
+    def collides_with(self, player):
+        """Handles collision with the player character."""
+        char_x = player.x
+        char_y = player.y
+        char_width = player.width
+        char_height = player.height
+
+        # Check if the character is overlapping the pillar
+        horizontal_overlap = (char_x + char_width > self.x and char_x < self.x + self.width)
+        vertical_overlap = (char_y + char_height > self.y and char_y < self.y + self.height)
+
+        if horizontal_overlap and vertical_overlap:
+            # **Vertical Collision**: Landing on top of the pillar
+            if player.velocity_y < 0 and char_y + char_height >= self.y:
+                player.y = self.y + self.height
                 player.velocity_y = 0
                 player.on_ground = True
                 return True
+
+            # **Horizontal Collision**: Block movement when walking into the pillar
+            if char_x + char_width >= self.x and player.x < self.x:  # Moving right
+                player.x = self.x - char_width  # Stop at the left side of the pillar
+            elif char_x <= self.x + self.width and player.x > self.x:  # Moving left
+                player.x = self.x + self.width  # Stop at the right side of the pillar
+
+            return True
+
         return False
 
 #Dialgogue Box System
 class DialogueBox:
-    def __init__(self, text, x, y, width=400, height=100):
+    def __init__(self, text, x, y, width=700, height=100):
         self.text = text
         self.x = x
         self.y = y
@@ -572,11 +1022,7 @@ class ManageDialogue:
         self.shown_dialogues = set()  # Track already shown dialogues
         
         # Add initial dialogue boxes
-        self.add_dialogue_box("welcome", "Welcome to WheelAware!", 200, 450)
-        self.add_dialogue_box("controls", "Use arrow keys to move your character.", 200, 450)
-        self.add_dialogue_box("jump", "Press SPACE to jump.", 200, 450)
-        self.add_dialogue_box("mission", "Experience challenges faced by people with mobility issues.", 200, 450)
-        
+        self.add_dialogue_box("welcome", "Welcome to WheelAware!", 10, 450)
         # Set up scene-specific dialogues
         self.setup_scene_dialogues()
         self.setup_location_dialogues()
@@ -584,29 +1030,53 @@ class ManageDialogue:
     def setup_scene_dialogues(self):
         """Set up dialogues for each scene transition"""
         self.scene_dialogues[0] = [
-            {"id": "scene0_intro", "text": "Scene 1: Stairs Challenge", "x": 200, "y": 450}
+            {"id": "scene0_controls", "text": "Use arrow keys to move your character.", "x": 10, "y": 450},
+            {"id": "scene0_jump", "text": "and press SPACE to jump.", "x": 10, "y": 450},
+            {"id": "scene0_intro", "text": "Scene 1: A Young Diagnosis", "x": 10, "y": 450},
+            {"id": "scene0_1", "text": "This young patient was recently diagnosed with Multiple Sclerosis.", "x": 10, "y": 450},
+            {"id": "scene0_2", "text": "Multiple Sclerosis (MS) is a chronic condition affecting the nervous system.", "x": 10, "y": 450},
+            {"id": "scene0_3", "text": "At first, MS symptoms might seem mild.", "x": 10, "y": 450},
+            {"id": "scene0_4", "text": "Many young people with MS can walk, run, and live actively.", "x": 10, "y": 450},
+            {"id": "scene0_4", "text": "But movement can become more difficult over time.", "x": 10, "y": 450},
+            {"id": "scene0_5", "text": "Mission 1: Climb the stairs", "x": 10, "y": 450}
         ]
         self.scene_dialogues[1] = [
-            {"id": "scene1_intro", "text": "Scene 2: Ramps and Bumpy Roads", "x": 200, "y": 450},
-            {"id": "scene1_tip", "text": "Try using the ramp instead of jumping over obstacles.", "x": 200, "y": 450}
+            {"id": "scene1_intro", "text": "Keep going!", "x": 10, "y": 450},
         ]
-        # Add more scenes as needed
+        self.scene_dialogues[2] = [
+            {"id": "scene2_intro", "text": "A few bumps won’t slow him down. Not yet.", "x": 10, "y": 450},
+            {"id": "scene2_ms", "text": "MS can cause balance issues, making uneven surfaces challenging, even at this young age.", "x": 10, "y": 450},
+            {"id": "scene0_5", "text": "Mission 2: Cross the uneven road", "x": 10, "y": 450}
+        ]
+    # part 2 (wheelchair transition)
+        self.scene_dialogues[3] = [
+            {"id": "scene3_transition", "text": "Years have passed. Your MS has progressed.", "x": 10, "y": 450},
+            {"id": "scene3_wheelchair1", "text": "Due to arising symptoms like muscle weakness and balance problems...", "x": 10, "y": 450},
+            {"id": "scene3_wheelchair2", "text": "...You now use a wheelchair to get around.", "x": 10, "y": 450},
+            {"id": "scene3_controls", "text": "Use LEFT and RIGHT arrow keys to move. You can no longer jump.", "x": 10, "y": 450},
+            {"id": "scene3_ramps", "text": "Ramps are now your best friend for navigating obstacles.", "x": 10, "y": 450}
+        ]
+        self.scene_dialogues[4] = [
+            {"id": "scene4_transition", "text": "Uneven roads are harder to pass now.", "x": 10, "y": 450}
+        ]
+        self.scene_dialogues[5] = [
+            {"id": "scene5_transition", "text": "Multiple Sclerosis affects mobility over time. Simple tasks can become difficult.", "x": 10, "y": 450},
+            {"id": "scene5_transition1", "text": "Climbing these stairs was easy a long time ago...", "x": 10, "y": 450},
+            {"id": "scene5_transition2", "text": "...but now, they're an imposible barrier.", "x": 10, "y": 450},
+            {"id": "scene5_transition3", "text": "Sadly, many places forget about accessibility. ", "x": 10, "y": 450},
+            {"id": "scene5_transition4", "text": "Options like ramps and elevators, should be available everywhere. ", "x": 10, "y": 450},
+            {"id": "scene5_transition5", "text": "Caring about MS means caring about making spaces open to everyone.", "x": 10, "y": 450},
+            {"id": "scene5_transition6", "text": "Accessibility isn't a privilege—it's a necessity. ", "x": 10, "y": 450},
+            {"id": "scene5_transition7", "text": "Thank You For Playing.", "x": 10, "y": 450}
+        ]
 
     def setup_location_dialogues(self):
         """Set up dialogues for specific locations within scenes"""
         # Scene 0 locations
-        self.location_dialogues[0] = [
-            {"id": "stairs_approach", "x_range": (200, 300), "text": "Stairs can be difficult for wheelchair users.", "x": 200, "y": 450},
-            {"id": "stairs_top", "x_range": (500, 600), "text": "You made it! Not everyone can climb stairs easily.", "x": 200, "y": 450}
+        self.location_dialogues[0] = [ 
+            {"id": "stairs_top", "x_range": (600, 800), "text": "Great! That was easy.", "x": 10, "y": 450},
+            
         ]
-        
-        # Scene 1 locations
-        self.location_dialogues[1] = [
-            {"id": "ramp_approach", "x_range": (50, 150), "text": "Ramps provide accessibility for wheelchair users.", "x": 200, "y": 450},
-            {"id": "bumpy_road", "x_range": (600, 700), "text": "Bumpy roads can be uncomfortable and difficult to navigate.", "x": 200, "y": 450}
-        ]
-        # Add more location triggers as needed
-
     def add_dialogue_box(self, dialogue_id, text, x, y):
         """Add a new dialogue box to the list."""
         new_box = DialogueBox(text, x, y)
@@ -670,9 +1140,8 @@ class ManageDialogue:
                         self.dismiss_current_dialogue()
                         self.last_key_press_time = current_time
                         
-                        # If this was an intro dialogue, check for scene dialogues
-                        if len(self.shown_dialogues) <= 4:  # After the 4 initial dialogues
-                            self.check_scene_dialogues(scene_index)
+                        # Always check for scene dialogues after dismissing current dialogue
+                        self.check_scene_dialogues(scene_index)
 
     def draw(self):
         """Draw the current dialogue box if it exists."""
@@ -681,15 +1150,23 @@ class ManageDialogue:
 
 class GameScenes:
     def __init__(self):
-        self.player = Character(50, 100, 800, 600)  # Start at (50, 100)
+        self.player = Character(50, 100, 800, 600, character_type="walking")  # Start with walking character
         self.current_scene_index = 0  # Start with the first scene
         self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
-            Scene([Stair(250, 50, 550, 350)]),  # Scene 1
-            Scene([Ramp(0, 50, 550, 350), BumpyRoad(600, 50, 550, 7)]),  # Scene 2
+            # Part 1
+            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)]),  
+            Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down")]), 
+            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]), 
+            # Part 2
+            Scene([Ramp(150, 50, 700, 50, True)]), 
+            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]),
+            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)])
+
         ]
         self.scene_change = False  # Flag to track scene changes
-
+        self.wheelchair_transition_triggered = False  # Flag to track if we've done the wheelchair transition
+        
     def update(self, keys):
         self.previous_scene_index = self.current_scene_index
         current_scene = self.scenes[self.current_scene_index]
@@ -700,6 +1177,14 @@ class GameScenes:
             self.current_scene_index = (self.current_scene_index + 1) % len(self.scenes)
             self.player.x = 50  # Reset position to the left side
             self.scene_change = True
+            
+            # Check if we're transitioning from scene 3 to scene 4 (index 2 to 3)
+            if self.previous_scene_index == 2 and self.current_scene_index == 3 and not self.wheelchair_transition_triggered:
+                # Change to wheelchair character
+                self.player.character_type = "wheelchair"
+                self.wheelchair_transition_triggered = True
+                # Could add special dialogue here
+                
         else:
             self.scene_change = False
 
