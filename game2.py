@@ -10,6 +10,7 @@ from OpenGL.GLUT import *
 import math, random, time
 
 #initialize OpenGL and Pygame
+glutInit()
 pygame.init()
 display_width, display_height = 800, 600
 pygame.display.set_mode((display_width, display_height), DOUBLEBUF | OPENGL)
@@ -691,6 +692,7 @@ class Scene:
         # Draw all obstacles in the scene
         for obstacle in self.obstacles:
             obstacle.draw()
+    
 
 
 class Stair:
@@ -1148,6 +1150,89 @@ class ManageDialogue:
         if 0 <= self.current_dialogue_index < len(self.dialogue_boxes):
             self.dialogue_boxes[self.current_dialogue_index]["box"].draw()
 
+class Coin:
+    def __init__(self, x, y, size=30):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.collected = False
+        self.scale = 1.0
+        self.alpha = 1.0  # Transparency for fade-out effect
+        self.rotation = 0  # Track rotation angle
+
+    def draw(self):
+        if self.collected:
+            # If collected, increase size and fade out
+            self.scale += 0.05
+            self.alpha -= 0.05
+            if self.alpha <= 0:
+                return  # Fully disappeared
+
+        # Enable blending for transparency
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        # Update rotation
+        self.rotation = (self.rotation + 2) % 360
+        
+        # Draw outer circle (gold rim)
+        glColor4f(1.0, 0.8, 0.0, self.alpha)  # Golden yellow with fade effect
+        self.draw_circle(self.x + self.size/2, self.y + self.size/2, self.size/2 * self.scale)
+        
+        # Draw inner circle (lighter center)
+        glColor4f(1.0, 0.9, 0.2, self.alpha)  # Lighter yellow center
+        self.draw_circle(self.x + self.size/2, self.y + self.size/2, (self.size/2 - 2) * self.scale)
+        
+        # Draw a simple "shine" effect
+        shine_angle = math.radians(self.rotation)
+        shine_x = self.x + self.size/2 + math.cos(shine_angle) * (self.size/4)
+        shine_y = self.y + self.size/2 + math.sin(shine_angle) * (self.size/4)
+        
+        glColor4f(1.0, 1.0, 1.0, self.alpha * 0.7)  # White shine with transparency
+        self.draw_circle(shine_x, shine_y, self.size/5 * self.scale)
+        
+        glDisable(GL_BLEND)
+
+    def draw_circle(self, cx, cy, r, segments=20):
+        """Draw a filled circle at (cx, cy) with radius r"""
+        glBegin(GL_TRIANGLE_FAN)
+        glVertex2f(cx, cy)  # Center point
+        for i in range(segments + 1):
+            angle = 2.0 * math.pi * i / segments
+            x = cx + r * math.cos(angle)
+            y = cy + r * math.sin(angle)
+            glVertex2f(x, y)
+        glEnd()
+
+    def collides_with(self, player):
+        """Detect collision with the player."""
+        char_x = player.x
+        char_y = player.y
+        char_width = player.width
+        char_height = player.height
+        
+        # Calculate center points and distance for circle-rectangle collision
+        coin_center_x = self.x + self.size/2
+        coin_center_y = self.y + self.size/2
+        
+        # Find the closest point on the rectangle to the circle's center
+        closest_x = max(char_x, min(coin_center_x, char_x + char_width))
+        closest_y = max(char_y, min(coin_center_y, char_y + char_height))
+        
+        # Calculate distance between closest point and circle's center
+        distance_x = coin_center_x - closest_x
+        distance_y = coin_center_y - closest_y
+        distance = math.sqrt(distance_x * distance_x + distance_y * distance_y)
+        
+        # Collision occurs if distance is less than circle's radius
+        if distance < self.size/2 and not self.collected:
+            self.collected = True
+            return True
+            
+        return False
+
+
+
 class GameScenes:
     def __init__(self):
         self.player = Character(50, 100, 800, 600, character_type="walking")  # Start with walking character
@@ -1155,14 +1240,13 @@ class GameScenes:
         self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
             # Part 1
-            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)]),  
+            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350), Coin(600, 400)]),  
             Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down")]), 
             Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]), 
             # Part 2
             Scene([Ramp(150, 50, 700, 50, True)]), 
             Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]),
             Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)])
-
         ]
         self.scene_change = False  # Flag to track scene changes
         self.wheelchair_transition_triggered = False  # Flag to track if we've done the wheelchair transition
@@ -1171,6 +1255,21 @@ class GameScenes:
         self.previous_scene_index = self.current_scene_index
         current_scene = self.scenes[self.current_scene_index]
         self.player.move(keys, current_scene.obstacles)  # Pass obstacles, not the entire scene
+
+        # Update coins in the current scene and check for collisions
+        coins_to_remove = []
+        for obstacle in current_scene.obstacles:
+            if isinstance(obstacle, Coin):
+                # Check for collision with player
+                obstacle.collides_with(self.player)
+                
+                # Mark fully faded coins for removal
+                if obstacle.collected and obstacle.alpha <= 0:
+                    coins_to_remove.append(obstacle)
+        
+        # Remove fully faded coins
+        for coin in coins_to_remove:
+            current_scene.obstacles.remove(coin)
 
         # Scene transition logic
         if self.player.x > 750:
@@ -1190,17 +1289,40 @@ class GameScenes:
 
     def draw(self):
         """Draw the current scene and player."""
-        self.scenes[self.current_scene_index].draw()  # Draw scene
-        self.player.draw()  # Draw character
+        # Get the current scene and draw its background first
+        current_scene = self.scenes[self.current_scene_index]
+        current_scene.draw()  # This assumes Scene class has a draw_background method
+        
+        # Then draw all obstacles including coins
+        for obstacle in current_scene.obstacles:
+            obstacle.draw()
+        
+        # Draw the player
+        self.player.draw()
 
 def main():
+    
+    # Set up the orthographic projection for 2D rendering
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluOrtho2D(0, display_width, 0, display_height)
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    
     global game_state
+    game_state = TITLE_SCREEN
+    
     running = True
     clock = pygame.time.Clock()
     game_scene = GameScenes()
     game = ManageDialogue()  # Initialize the game with dialogue boxes
-
+    
     while running:
+        # Set the clear color (black background)
+        glClearColor(0.0, 0.0, 0.0, 1.0)
+        # Clear the color buffer
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        
         keys = pygame.key.get_pressed()
         events = pygame.event.get()  # Collect all events once per frame
         
@@ -1210,7 +1332,7 @@ def main():
                 running = False
                 pygame.quit()
                 return
-
+        
         if game_state == TITLE_SCREEN:
             draw_title_screen()
             handle_title_screen_events()
@@ -1227,11 +1349,10 @@ def main():
             game.update(events, game_scene.current_scene_index, game_scene.player.x)
             
             # Draw everything
-            game_scene.draw()        
+            game_scene.draw()
             game.draw()
-            
+        
             pygame.display.flip()  # Update the display
-
         clock.tick(60)
 
 if __name__ == "__main__":
