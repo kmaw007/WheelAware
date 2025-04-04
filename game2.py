@@ -7,14 +7,25 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-import math, random, time
+import math
 
-#initialize OpenGL and Pygame
-glutInit()
+# Initialize Pygame and OpenGL
 pygame.init()
+glutInit()
 display_width, display_height = 800, 600
-pygame.display.set_mode((display_width, display_height), DOUBLEBUF | OPENGL)
-gluOrtho2D(0, display_width, 0, display_height)  # Set the coordinate system
+pygame.display.set_mode((display_width, display_height), DOUBLEBUF | OPENGL)  
+
+# Set up OpenGL
+glEnable(GL_DEPTH_TEST)  # Enable depth testing
+glDepthFunc(GL_LESS)  # Specify depth test function
+glClearColor(0.0, 0.0, 0.0, 1.0)  # Set clear color (black)
+
+def setup_perspective():
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluPerspective(45, (display_width / display_height), 0.1, 100.0)  # Field of view, aspect ratio, near and far planes
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
 
 # Game states
 TITLE_SCREEN = 0
@@ -22,30 +33,100 @@ GAMEPLAY = 1
 INSTRUCTIONS = 2
 game_state = TITLE_SCREEN
 
-# Function to draw buildings with different colors
+def setup_2d():
+    """Set up 2D rendering with correct coordinates"""
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    # Use bottom-left origin for consistency with OpenGL
+    gluOrtho2D(0, 800, 0, 600)  
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    glDisable(GL_DEPTH_TEST)
+
+def setup_3d():
+    """Set up 3D rendering"""
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluPerspective(45, (800/600), 0.1, 50.0)
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    glEnable(GL_DEPTH_TEST)
+
+def draw_3d_cube(angle):
+    """Draw a rotating yellow sphere-like sun"""
+    setup_3d()  # Switch to 3D mode
+    
+    glPushMatrix()
+    glLoadIdentity()
+    
+    # Position in top right corner
+    glTranslatef(2.5, 1.5, -5.0)
+    # Make the sun smaller
+    glScalef(0.5, 0.5, 0.5)
+    # Rotate the sun
+    glRotatef(angle, 1, 1, 0)
+
+    # Draw a more spherical sun with more faces
+    segments = 10  # Increase this number for more smoothness
+    rings = 10    # Increase this number for more smoothness
+
+    # Draw the sphere using triangle strips
+    for i in range(rings):
+        lat0 = math.pi * (-0.5 + float(i) / rings)
+        z0 = math.sin(lat0)
+        zr0 = math.cos(lat0)
+
+        lat1 = math.pi * (-0.5 + float(i + 1) / rings)
+        z1 = math.sin(lat1)
+        zr1 = math.cos(lat1)
+
+        glBegin(GL_TRIANGLE_STRIP)
+        for j in range(segments + 1):
+            lng = 2 * math.pi * float(j) / segments
+
+            x = math.cos(lng)
+            y = math.sin(lng)
+
+            # Vary colors for a sun-like appearance
+            intensity = 0.8 + 0.2 * math.cos(lng) * math.cos(lat0)
+            glColor3f(1.0 * intensity, 1.0 * intensity, 0.0)  # Yellow with shading
+            glVertex3f(x * zr0, y * zr0, z0)
+
+            intensity = 0.8 + 0.2 * math.cos(lng) * math.cos(lat1)
+            glColor3f(1.0 * intensity, 1.0 * intensity, 0.0)  # Yellow with shading
+            glVertex3f(x * zr1, y * zr1, z1)
+        glEnd()
+
+    glPopMatrix()
+    setup_2d()  # Switch back to 2D mode
+
 def draw_building(x, y, width, height, color):
+    """Draw building with coordinates matching OpenGL style (bottom-left origin)"""
+    # No need to convert y-coordinate since we're using OpenGL coordinates consistently
     vertices = [
-        (x, y),
-        (x + width, y),
-        (x + width, y + height),
-        (x, y + height)
+        (x, y),  # Bottom left (start from ground up)
+        (x + width, y),  # Bottom right
+        (x + width, y + height),  # Top right
+        (x, y + height)  # Top left
     ]
+    
+    # Draw main building
     glBegin(GL_QUADS)
-    glColor3f(*color)  # Use the provided color
+    glColor3f(*color)
     for vertex in vertices:
         glVertex2f(*vertex)
     glEnd()
 
     # Shadow on the right side
-    shadow_width = width * 0.2  # Adjust shadow width
-    shadow_color = (color[0] * 0.5, color[1] * 0.5, color[2] * 0.5)  # Darken color
+    shadow_width = width * 0.2
+    shadow_color = (color[0] * 0.5, color[1] * 0.5, color[2] * 0.5)
 
     glBegin(GL_QUADS)
     glColor3f(*shadow_color)
-    glVertex2f(x + width, y)  # Bottom right
-    glVertex2f(x + width + shadow_width, y)  # Extended shadow width
-    glVertex2f(x + width + shadow_width, y + height)
-    glVertex2f(x + width, y + height)
+    glVertex2f(x + width, y)  # Bottom right of building
+    glVertex2f(x + width + shadow_width, y)  # Bottom right of shadow
+    glVertex2f(x + width + shadow_width, y + height)  # Top right of shadow
+    glVertex2f(x + width, y + height)  # Top right of building
     glEnd()
 
 # Function to draw windows
@@ -99,7 +180,8 @@ def draw_streetlight(x, y):
 # Function to draw pavement
 def draw_pavement():
     glBegin(GL_QUADS)
-    glColor3f(0.3, 0.3, 0.3)  # Pavement color
+    glColor3f(0.3, 0.3, 0.3)
+    # Draw from bottom up
     glVertex2f(0, 0)
     glVertex2f(800, 0)
     glVertex2f(800, 50)
@@ -163,128 +245,21 @@ def render_text(text, x, y, size=36):
     glRasterPos2f(x, y)
     glDrawPixels(text_surface.get_width(), text_surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, text_data)
 
-def draw_title_screen():
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Clear both color and depth buffers
-
-    # Draw the background scene directly
-    display() 
-
-    # Draw the title text
-    render_text("WheelAware: An MS Awareness Game", 100, 500, 48)
-
-    # Draw buttons
-    glColor3f(0.0, 0.0, 0.0)
-    
-    # PLAY button
-    glBegin(GL_QUADS)
-    glVertex2f(300, 250)
-    glVertex2f(500, 250)
-    glVertex2f(500, 300)
-    glVertex2f(300, 300)
-    glEnd()
-    render_text("PLAY", 370, 270, 36)
-    
-    # INSTRUCTIONS button
-    glBegin(GL_QUADS)
-    glVertex2f(300, 180)
-    glVertex2f(500, 180)
-    glVertex2f(500, 230)
-    glVertex2f(300, 230)
-    glEnd()
-    render_text("INSTRUCTIONS", 310, 200, 36)
-
-    glFlush()  # Force OpenGL to execute all commands
-
-    pygame.display.flip()  # Swap buffers once per frame
-
-def handle_title_screen_events():
-    global game_state
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            exit()
-        elif event.type == MOUSEBUTTONDOWN:
-            x, y = event.pos
-            y = display_height - y  # Convert Pygame's Y-coordinates to OpenGL's
-
-            print(f"Mouse Clicked at: {x}, {y}")  # Debugging
-
-            if 300 <= x <= 500:
-                if 250 <= y <= 300:
-                    print("PLAY button clicked!")  # Debugging
-                    game_state = GAMEPLAY  # Switch to gameplay
-                elif 180 <= y <= 230:
-                    print("INSTRUCTIONS button clicked!")  # Debugging
-                    game_state = INSTRUCTIONS
-
-def display():
-    glClear(GL_COLOR_BUFFER_BIT)
-
-    # Draw the sky
-    draw_sky()
-
-    # Draw buildings
-    #back
-    draw_building(0, 50, 100, 100, (105/255.0, 105/255.0, 105/255.0))
-    draw_building(150, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))
-    draw_building(400, 50, 120, 330, (105/255.0, 105/255.0, 105/255.0))
-    draw_building(600, 50, 120, 210, (105/255.0, 105/255.0, 105/255.0))
-    draw_building(700, 50, 120, 270, (105/255.0, 105/255.0, 105/255.0))
-    #front
-    draw_building(100, 50, 100, 300, (50/255.0, 50/255.0, 50/255.0))
-    draw_building(250, 50, 150, 250, (50/255.0, 50/255.0, 50/255.0))
-    draw_building(450, 50, 200, 200, (50/255.0, 50/255.0, 50/255.0))
-    draw_building(700, 50, 80, 300, (50/255.0, 50/255.0, 50/255.0))
-    # Draw windows
-    for i in range(3):
-        #buidling 1 (R to L)
-        height = 310
-        while height > 50:
-            draw_window(117 + i * 25, height, 15, 15)
-            height = height - 30
-        
-        #buidling 2
-        draw_window(270 + i * 45, 250, 20, 30)
-        draw_window(270 + i * 45, 200, 20, 30)
-        draw_window(270 + i * 45, 150, 20, 30)
-        draw_window(270 + i * 45, 100, 20, 30)
-
-        #buidling 3       
-        draw_window(550 + i * 35, 180, 20, 50)
-        draw_window(550 + i * 35, 100, 20, 50)
-
-        #buidling 4
-        height = 330
-        while height > 50:
-            draw_window(708 + i * 25, height, 15, 15)
-            height = height - 30
-
-    # Draw streetlights
-    draw_streetlight(50, 50)
-    draw_streetlight(150, 50)
-    draw_streetlight(300, 50)
-    draw_streetlight(500, 50)
-    draw_streetlight(680, 50)
-
-    # Draw road
-    draw_road()
-
-    # Draw pavement
-    draw_pavement()
-
-    # Draw clouds
-    draw_cloud(200, 450, 30)
-    draw_cloud(400, 480, 40)
-    draw_cloud(600, 450, 35)
-    draw_cloud(300, 500, 25)
-
 class Character:
     def __init__(self, x, y, window_width, window_height, width=30, height=50, character_type="walking"):
         self.x = x
-        self.y = y
+        self.y = window_height - y - height  # This flips the y-coordinate
         self.width = width
         self.height = height
-        self.speed = 5  
+
+        # Different speeds for different character types
+        if character_type == "walking":
+            self.base_speed = 5  # Normal walking speed
+            self.speed = self.base_speed
+        else:  # wheelchair
+            self.base_speed = 1 # Slower base speed for wheelchair
+            self.speed = self.base_speed 
+
         self.jump_power = -10
         self.velocity_y = 0
         self.gravity = 0.5
@@ -297,15 +272,19 @@ class Character:
         self.animation_frame = 0  # For walking animation
         self.animation_time = 0  # Time tracker for animation
 
-    def move(self, keys, obstacles):
-        # Store original position for collision resolution
+    def move(self, keys, obstacles, current_scene_index=0):  # Add scene index parameter
+        # If in the last scene (index 5), prevent all movement
+        if current_scene_index == 5:
+            return
+
+        # Rest of the movement code remains the same
         original_x = self.x
         original_y = self.y
         
         # Update animation time
         self.animation_time += 1
-        if self.animation_time > 10:  # Change animation frame every 10 game ticks
-            self.animation_frame = (self.animation_frame + 1) % 4  # 4 animation frames
+        if self.animation_time > 10:
+            self.animation_frame = (self.animation_frame + 1) % 4
             self.animation_time = 0
         
         # Left/Right Movement
@@ -681,15 +660,65 @@ class Scene:
         self.obstacles = obstacles  # Store obstacles in the scene
 
     def draw(self):
-        """Draw the scene's background"""
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Clear the screen
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
+        #Draw the sky gradient
         draw_sky()
-        draw_building(0, 50, 300, 600, (50/255.0, 50/255.0, 50/255.0))  
-        draw_building(450, 50, 300, 400, (50/255.0, 50/255.0, 50/255.0)) 
+
+        #Draw clouds
+        draw_cloud(200, 450, 30)
+        draw_cloud(400, 480, 40)
+        draw_cloud(600, 450, 35)
+        draw_cloud(300, 500, 25)
+
+        # Draw background buildings (back layer)
+        # y-coordinate should be close to ground level (50), height extends upward
+        draw_building(0, 50, 100, 400, (105/255.0, 105/255.0, 105/255.0))      # Taller building
+        draw_building(150, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))    # Medium height
+        draw_building(400, 50, 120, 500, (105/255.0, 105/255.0, 105/255.0))    # Very tall building
+        draw_building(600, 50, 120, 200, (105/255.0, 105/255.0, 105/255.0))    # Shorter building
+        draw_building(700, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))    # Medium-tall building
+
+        # Draw front buildings (darker)
+        draw_building(100, 50, 100, 300, (50/255.0, 50/255.0, 50/255.0))       # Tall dark building
+        draw_building(250, 50, 150, 250, (50/255.0, 50/255.0, 50/255.0))       # Medium dark building
+        draw_building(450, 50, 200, 200, (50/255.0, 50/255.0, 50/255.0))       # Medium-tall dark building
+        draw_building(700, 50, 80, 340, (50/255.0, 50/255.0, 50/255.0))        # Another tall dark building
+        # Draw windows on buildings
+        for i in range(3):
+            # Building 1 windows
+            height = 310
+            while height > 50:
+                draw_window(117 + i * 25, height, 15, 15)
+                height = height - 30
+            
+            # Building 2 windows
+            draw_window(270 + i * 45, 250, 20, 30)
+            draw_window(270 + i * 45, 200, 20, 30)
+            draw_window(270 + i * 45, 150, 20, 30)
+            draw_window(270 + i * 45, 100, 20, 30)
+
+            # Building 3 windows
+            draw_window(550 + i * 35, 180, 20, 50)
+            draw_window(550 + i * 35, 100, 20, 50)
+
+            # Building 4 windows
+            height = 330
+            while height > 50:
+                draw_window(708 + i * 25, height, 15, 15)
+                height = height - 30
+
+        # Draw streetlights
+        draw_streetlight(50, 50)
+        draw_streetlight(150, 50)
+        draw_streetlight(300, 50)
+        draw_streetlight(500, 50)
+        draw_streetlight(680, 50)
+
+        # Draw road and pavement last
+        draw_road()
         draw_pavement()
         
-        # Draw all obstacles in the scene
         for obstacle in self.obstacles:
             obstacle.draw()
     
@@ -921,12 +950,26 @@ class BumpyRoad:
                 player.velocity_y = 0
                 player.on_ground = True
                 
-                # Add a small bumping effect when walking
+                # Slow down wheelchair user
+                if player.character_type == "wheelchair":
+                    # Store original speed if not already stored
+                    if not hasattr(player, 'original_speed'):
+                        player.original_speed = player.speed
+                    # Reduce speed while on bumpy road
+                    player.speed = player.original_speed * 0.7  # Reduce speed by 70%
+                
+                # Add a small bumping effect when moving
                 if player.velocity_y == 0:
-                    # Small random up/down movement when on bumpy road
-                    player.y += math.sin(pygame.time.get_ticks() * 0.01) * 1.5
+                    # More pronounced bumping for wheelchair
+                    bump_intensity = 2.0 if player.character_type == "wheelchair" else 1.5
+                    player.y += math.sin(pygame.time.get_ticks() * 0.01) * bump_intensity
                 
                 return True
+        
+        # When not on bumpy road, restore original speed if character is wheelchair user
+        if player.character_type == "wheelchair" and hasattr(player, 'original_speed'):
+            player.speed = player.original_speed
+            
         return False
     
 class Pillar:
@@ -1047,7 +1090,8 @@ class ManageDialogue:
         ]
         self.scene_dialogues[2] = [
             {"id": "scene2_intro", "text": "A few bumps won’t slow him down. Not yet.", "x": 10, "y": 450},
-            {"id": "scene2_ms", "text": "MS can cause balance issues, making uneven surfaces challenging, even at this young age.", "x": 10, "y": 450},
+            {"id": "scene2_ms", "text": "MS can cause balance issues, making uneven surfaces challenging,... ", "x": 10, "y": 450},
+             {"id": "scene2_ms", "text": "...even at this young age.", "x": 10, "y": 450},
             {"id": "scene0_5", "text": "Mission 2: Cross the uneven road", "x": 10, "y": 450}
         ]
     # part 2 (wheelchair transition)
@@ -1159,65 +1203,140 @@ class Coin:
         self.scale = 1.0
         self.alpha = 1.0  # Transparency for fade-out effect
         self.rotation = 0  # Track rotation angle
-
-    def draw(self):
+        self.oscillation = 0  # For up/down floating effect
+        
+    def update(self):
+        # Update rotation for spinning effect
+        self.rotation = (self.rotation + 2) % 360
+        
+        # Add floating oscillation
+        self.oscillation = math.sin(pygame.time.get_ticks() * 0.002) * 5
+        
         if self.collected:
             # If collected, increase size and fade out
             self.scale += 0.05
             self.alpha -= 0.05
-            if self.alpha <= 0:
-                return  # Fully disappeared
-
+            
+    def draw(self):
+        if self.collected and self.alpha <= 0:
+            return  # Fully disappeared
+            
+        self.update()
+        
         # Enable blending for transparency
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Update rotation
-        self.rotation = (self.rotation + 2) % 360
+        # Save the current matrix
+        glPushMatrix()
         
-        # Draw outer circle (gold rim)
-        glColor4f(1.0, 0.8, 0.0, self.alpha)  # Golden yellow with fade effect
-        self.draw_circle(self.x + self.size/2, self.y + self.size/2, self.size/2 * self.scale)
+        # Move to coin position including oscillation for floating effect
+        coin_center_x = self.x + self.size/2
+        coin_center_y = self.y + self.size/2 + self.oscillation
         
-        # Draw inner circle (lighter center)
-        glColor4f(1.0, 0.9, 0.2, self.alpha)  # Lighter yellow center
-        self.draw_circle(self.x + self.size/2, self.y + self.size/2, (self.size/2 - 2) * self.scale)
+        # Translate to center point for rotation
+        glTranslatef(coin_center_x, coin_center_y, 0)
         
-        # Draw a simple "shine" effect
-        shine_angle = math.radians(self.rotation)
-        shine_x = self.x + self.size/2 + math.cos(shine_angle) * (self.size/4)
-        shine_y = self.y + self.size/2 + math.sin(shine_angle) * (self.size/4)
+        # Apply rotation around Y axis (simulated with scaling)
+        rot_rad = math.radians(self.rotation)
+        # Scale X based on rotation to simulate perspective
+        scale_x = abs(math.cos(rot_rad)) * 0.7 + 0.3  # Range from 0.3 to 1.0
         
-        glColor4f(1.0, 1.0, 1.0, self.alpha * 0.7)  # White shine with transparency
-        self.draw_circle(shine_x, shine_y, self.size/5 * self.scale)
+        # Apply scaling
+        glScalef(scale_x * self.scale, 1.0 * self.scale, 1.0)
+        
+        # Draw main coin body (gold)
+        self.draw_3d_coin(0, 0, self.size/2, self.alpha)
+        
+        # Restore the matrix
+        glPopMatrix()
         
         glDisable(GL_BLEND)
-
-    def draw_circle(self, cx, cy, r, segments=20):
-        """Draw a filled circle at (cx, cy) with radius r"""
-        glBegin(GL_TRIANGLE_FAN)
-        glVertex2f(cx, cy)  # Center point
+        
+    def draw_3d_coin(self, cx, cy, radius, alpha):
+        """Draw a 3D-looking coin with proper shading"""
+        segments = 30
+        inner_radius = radius * 0.85
+        
+        # Draw outer edge (rim) - slightly darker gold
+        glBegin(GL_TRIANGLE_STRIP)
+        rim_color = (0.8, 0.6, 0.0, alpha)  # Darker gold for edge
+        face_color = (1.0, 0.8, 0.0, alpha)  # Brighter gold for face
+        
         for i in range(segments + 1):
             angle = 2.0 * math.pi * i / segments
-            x = cx + r * math.cos(angle)
-            y = cy + r * math.sin(angle)
+            x = radius * math.cos(angle)
+            y = radius * math.sin(angle)
+            x_inner = inner_radius * math.cos(angle)
+            y_inner = inner_radius * math.sin(angle)
+            
+            # Edge point
+            glColor4f(*rim_color)
+            glVertex2f(x, y)
+            
+            # Inner face point
+            glColor4f(*face_color)
+            glVertex2f(x_inner, y_inner)
+        glEnd()
+        
+        # Draw coin face
+        glBegin(GL_TRIANGLE_FAN)
+        # Center is bright
+        glColor4f(1.0, 0.9, 0.2, alpha)
+        glVertex2f(0, 0)
+        
+        # Edges are slightly darker
+        glColor4f(0.9, 0.75, 0.1, alpha)
+        for i in range(segments + 1):
+            angle = 2.0 * math.pi * i / segments
+            x = inner_radius * math.cos(angle)
+            y = inner_radius * math.sin(angle)
+            glVertex2f(x, y)
+        glEnd()
+        
+        # Draw a reflective highlight
+        self.draw_highlight(0, 0, radius * 0.5, alpha)
+    
+    def draw_highlight(self, cx, cy, radius, alpha):
+        """Draw a highlight on the coin to enhance 3D appearance"""
+        segments = 20
+        rot_rad = math.radians(self.rotation)
+        
+        # Highlight position shifts with rotation for 3D effect
+        highlight_x = radius * 0.5 * math.cos(rot_rad)
+        highlight_y = radius * 0.5 * math.sin(rot_rad)
+        
+        glBegin(GL_TRIANGLE_FAN)
+        # Bright center
+        glColor4f(1.0, 1.0, 1.0, alpha * 0.7)
+        glVertex2f(highlight_x, highlight_y)
+        
+        # Faded edges for smooth highlight
+        glColor4f(1.0, 1.0, 1.0, 0.0)
+        for i in range(segments + 1):
+            angle = 2.0 * math.pi * i / segments
+            x = highlight_x + (radius * 0.3) * math.cos(angle)
+            y = highlight_y + (radius * 0.3) * math.sin(angle)
             glVertex2f(x, y)
         glEnd()
 
     def collides_with(self, player):
         """Detect collision with the player."""
-        char_x = player.x
-        char_y = player.y
-        char_width = player.width
-        char_height = player.height
+        if self.collected:
+            return False
+            
+        # Convert player coordinates to match the OpenGL coordinate system
+        # In OpenGL y increases upward, but your player position y increases downward
+        player_y_converted = player.window_height - player.y - player.height
         
-        # Calculate center points and distance for circle-rectangle collision
+        # Center of the coin
         coin_center_x = self.x + self.size/2
-        coin_center_y = self.y + self.size/2
+        coin_center_y = self.y + self.size/2 + self.oscillation  # Include oscillation
         
+        # Check if the player's bounding box overlaps with the coin's circle
         # Find the closest point on the rectangle to the circle's center
-        closest_x = max(char_x, min(coin_center_x, char_x + char_width))
-        closest_y = max(char_y, min(coin_center_y, char_y + char_height))
+        closest_x = max(player.x, min(coin_center_x, player.x + player.width))
+        closest_y = max(player_y_converted, min(coin_center_y, player_y_converted + player.height))
         
         # Calculate distance between closest point and circle's center
         distance_x = coin_center_x - closest_x
@@ -1225,13 +1344,11 @@ class Coin:
         distance = math.sqrt(distance_x * distance_x + distance_y * distance_y)
         
         # Collision occurs if distance is less than circle's radius
-        if distance < self.size/2 and not self.collected:
+        if distance < self.size/2:
             self.collected = True
             return True
             
         return False
-
-
 
 class GameScenes:
     def __init__(self):
@@ -1240,9 +1357,9 @@ class GameScenes:
         self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
             # Part 1
-            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350), Coin(600, 400)]),  
-            Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down")]), 
-            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]), 
+            Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350), Coin(270, 170), Coin(430, 270), Coin(600, 370)]),  
+            Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down"), Coin(750, 80)]), 
+            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20),Coin(400, 80), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]), 
             # Part 2
             Scene([Ramp(150, 50, 700, 50, True)]), 
             Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]),
@@ -1254,7 +1371,8 @@ class GameScenes:
     def update(self, keys):
         self.previous_scene_index = self.current_scene_index
         current_scene = self.scenes[self.current_scene_index]
-        self.player.move(keys, current_scene.obstacles)  # Pass obstacles, not the entire scene
+        # Pass the current scene index to the move method
+        self.player.move(keys, current_scene.obstacles, self.current_scene_index)
 
         # Update coins in the current scene and check for collisions
         coins_to_remove = []
@@ -1274,15 +1392,16 @@ class GameScenes:
         # Scene transition logic
         if self.player.x > 750:
             self.current_scene_index = (self.current_scene_index + 1) % len(self.scenes)
-            self.player.x = 50  # Reset position to the left side
+            self.player.x = 50
             self.scene_change = True
             
             # Check if we're transitioning from scene 3 to scene 4 (index 2 to 3)
             if self.previous_scene_index == 2 and self.current_scene_index == 3 and not self.wheelchair_transition_triggered:
                 # Change to wheelchair character
                 self.player.character_type = "wheelchair"
+                self.player.base_speed = 2  # Set slower base speed
+                self.player.speed = self.player.base_speed  # Update current speed
                 self.wheelchair_transition_triggered = True
-                # Could add special dialogue here
                 
         else:
             self.scene_change = False
@@ -1301,59 +1420,61 @@ class GameScenes:
         self.player.draw()
 
 def main():
+    pygame.init()
+    glutInit()
+    screen = pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
+    pygame.display.set_caption("WheelAware")
     
-    # Set up the orthographic projection for 2D rendering
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluOrtho2D(0, display_width, 0, display_height)
-    glMatrixMode(GL_MODELVIEW)
-    glLoadIdentity()
-    
-    global game_state
-    game_state = TITLE_SCREEN
-    
-    running = True
-    clock = pygame.time.Clock()
+    # Initialize game objects
     game_scene = GameScenes()
-    game = ManageDialogue()  # Initialize the game with dialogue boxes
+    game = ManageDialogue()
+    
+    angle = 0
+    clock = pygame.time.Clock()
+    running = True
     
     while running:
-        # Set the clear color (black background)
-        glClearColor(0.0, 0.0, 0.0, 1.0)
-        # Clear the color buffer
+        # Clear both color and depth buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
-        keys = pygame.key.get_pressed()
-        events = pygame.event.get()  # Collect all events once per frame
-        
-        # Check for quit event in all game states
+        # Handle events
+        events = pygame.event.get()
         for event in events:
-            if event.type == QUIT:
+            if event.type == pygame.QUIT:
                 running = False
-                pygame.quit()
-                return
         
-        if game_state == TITLE_SCREEN:
-            draw_title_screen()
-            handle_title_screen_events()
-        
-        elif game_state == GAMEPLAY:
-            # Update the game state
-            game_scene.update(keys)
-            
-            # Check for scene changes - trigger relevant dialogues
-            if game_scene.scene_change:
-                game.check_scene_dialogues(game_scene.current_scene_index)
-            
-            # Update dialogue based on player position and current scene
-            game.update(events, game_scene.current_scene_index, game_scene.player.x)
-            
-            # Draw everything
-            game_scene.draw()
-            game.draw()
-        
-            pygame.display.flip()  # Update the display
-        clock.tick(60)
+        # Get keyboard state
+        keys = pygame.key.get_pressed()
 
+        # Set up 2D rendering with bottom-left origin
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluOrtho2D(0, 800, 0, 600)  # Changed to use bottom-left origin
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        
+        # Update and draw game elements
+        game_scene.update(keys)
+        if game_scene.scene_change:
+            game.check_scene_dialogues(game_scene.current_scene_index)
+        game.update(events, game_scene.current_scene_index, game_scene.player.x)
+        
+        # Draw game elements (this will draw the background with proper building heights)
+        game_scene.draw()
+        game.draw()
+        
+        # Draw 3D sun cube
+        setup_3d()
+        draw_3d_cube(angle)
+        angle += 1
+        
+        # Return to 2D for UI
+        setup_2d()
+        
+        pygame.display.flip()
+        clock.tick(60)
+    
+    pygame.quit()
+    
 if __name__ == "__main__":
     main()
