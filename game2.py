@@ -14,24 +14,9 @@ pygame.init()
 glutInit()
 display_width, display_height = 800, 600
 pygame.display.set_mode((display_width, display_height), DOUBLEBUF | OPENGL)  
-
-# Set up OpenGL
 glEnable(GL_DEPTH_TEST)  # Enable depth testing
 glDepthFunc(GL_LESS)  # Specify depth test function
 glClearColor(0.0, 0.0, 0.0, 1.0)  # Set clear color (black)
-
-def setup_perspective():
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluPerspective(45, (display_width / display_height), 0.1, 100.0)  # Field of view, aspect ratio, near and far planes
-    glMatrixMode(GL_MODELVIEW)
-    glLoadIdentity()
-
-# Game states
-TITLE_SCREEN = 0
-GAMEPLAY = 1
-INSTRUCTIONS = 2
-game_state = TITLE_SCREEN
 
 def setup_2d():
     """Set up 2D rendering with correct coordinates"""
@@ -67,8 +52,8 @@ def draw_3d_cube(angle):
     glRotatef(angle, 1, 1, 0)
 
     # Draw a more spherical sun with more faces
-    segments = 10  # Increase this number for more smoothness
-    rings = 10    # Increase this number for more smoothness
+    segments = 15  # Increase this number for more smoothness
+    rings = 15    # Increase this number for more smoothness
 
     # Draw the sphere using triangle strips
     for i in range(rings):
@@ -101,13 +86,22 @@ def draw_3d_cube(angle):
     setup_2d()  # Switch back to 2D mode
 
 def draw_building(x, y, width, height, color):
-    """Draw building with coordinates matching OpenGL style (bottom-left origin)"""
-    # No need to convert y-coordinate since we're using OpenGL coordinates consistently
+    """Draw building with transformations and shadow"""
+    glPushMatrix()
+    
+    # Move to position
+    glTranslatef(x, y, 0)
+    
+    
+    # Scale the building
+    glScalef(1.0, height/100.0, 1.0) 
+    
+    # Draw building relative to origin
     vertices = [
-        (x, y),  # Bottom left (start from ground up)
-        (x + width, y),  # Bottom right
-        (x + width, y + height),  # Top right
-        (x, y + height)  # Top left
+        (0, 0),  # Bottom left
+        (width, 0),  # Bottom right
+        (width, 100),  # Top right
+        (0, 100)  # Top left
     ]
     
     # Draw main building
@@ -116,34 +110,46 @@ def draw_building(x, y, width, height, color):
     for vertex in vertices:
         glVertex2f(*vertex)
     glEnd()
-
-    # Shadow on the right side
+    
+    # Draw shadow with rotation
     shadow_width = width * 0.2
     shadow_color = (color[0] * 0.5, color[1] * 0.5, color[2] * 0.5)
-
+    
     glBegin(GL_QUADS)
     glColor3f(*shadow_color)
-    glVertex2f(x + width, y)  # Bottom right of building
-    glVertex2f(x + width + shadow_width, y)  # Bottom right of shadow
-    glVertex2f(x + width + shadow_width, y + height)  # Top right of shadow
-    glVertex2f(x + width, y + height)  # Top right of building
+    glVertex2f(width, 0)
+    glVertex2f(width + shadow_width, 0)
+    glVertex2f(width + shadow_width, 100)
+    glVertex2f(width, 100)
     glEnd()
+    
+    glPopMatrix()
 
 # Function to draw windows
 def draw_window(x, y, width, height):
+    """Draw window with the same static rotation as buildings"""
+    glPushMatrix()
+    
+    # Move to position
+    glTranslatef(x, y, 0)
+
+    
+    # Draw the window
     vertices = [
-        (x, y),
-        (x + width, y),
-        (x + width, y + height),
-        (x, y + height)
+        (0, 0),
+        (width, 0),
+        (width, height),
+        (0, height)
     ]
+    
     glBegin(GL_QUADS)
-    glColor3f(232/255.0, 175/255.0, 131/255.0)  # Grey window color
+    glColor3f(232/255.0, 175/255.0, 131/255.0)  # Light brown color for window
     for vertex in vertices:
         glVertex2f(*vertex)
     glEnd()
+    
+    glPopMatrix()
 
-# Function to draw streetlights
 def draw_streetlight(x, y):    
     # Draw the pole
     glBegin(GL_QUADS)
@@ -154,8 +160,8 @@ def draw_streetlight(x, y):
     glVertex2f(x, y + 150)
     glEnd()
 
+    # Draw light fixture
     glColor3f(1.0, 1.0, 0.0)  # Normal bright light
-
     glBegin(GL_QUADS)
     glVertex2f(x - 10, y + 150)
     glVertex2f(x + 15, y + 150)
@@ -163,18 +169,29 @@ def draw_streetlight(x, y):
     glVertex2f(x - 10, y + 160)
     glEnd()
 
-    # Enable transparency for the light cone
+    # Enable transparency for the light cone with rotation
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     glColor4f(1.0, 1.0, 0.0, 0.2)  # Soft yellow light with transparency
 
-    # Draw the cone-shaped light
+    # Save current transformation matrix
+    glPushMatrix()
+    
+    # Translate to light source point, rotate, then translate back
+    glTranslatef(x + 2.5, y + 155, 0)  # Move to light source
+    glRotatef(-13, 0, 0, 1)  # Rotate 15 degrees counter-clockwise (adjust angle as needed)
+    glTranslatef(-(x + 2.5), -(y + 155), 0)  # Move back
+    
+    # Draw the rotated cone-shaped light
     glBegin(GL_TRIANGLES)
-    glVertex2f(x + 2.5, y + 155)  # Light source (near the top of the streetlight)
+    glVertex2f(x + 2.5, y + 155)  # Light source
     glVertex2f(x - 30, 50)  # Left side of light on pavement
     glVertex2f(x + 35, 50)  # Right side of light on pavement
     glEnd()
-
+    
+    # Restore transformation matrix
+    glPopMatrix()
+    
     glDisable(GL_BLEND)  # Disable transparency after drawing
 
 # Function to draw pavement
