@@ -45,7 +45,7 @@ def draw_3d_cube(angle):
     glLoadIdentity()
     
     # Position in top right corner
-    glTranslatef(2.5, 1.5, -5.0)
+    glTranslatef(2.7, 1.8, -5.0)
     # Make the sun smaller
     glScalef(0.5, 0.5, 0.5)
     # Rotate the sun
@@ -742,13 +742,14 @@ class Scene:
 
 
 class Stair:
-    def __init__(self, x, y, width, height, steps=10, direction="up"): 
+    def __init__(self, x, y, width, height, steps=10, direction="up", color= (0.5,0.5,0.5)): 
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.steps = steps  # Number of steps in the staircase
         self.direction = direction  # Direction of the stair (up or down)
+        self.color = color
         
         # Calculate dimensions for each step
         self.step_width = width / steps
@@ -757,7 +758,7 @@ class Stair:
     def draw(self):
         """Draw a staircase with the specified number of steps."""
         # Base color for the stairs
-        base_color = (0.6, 0.3, 0.1)  # Brown base color
+        
         
         # Draw the filled area under each step
         for i in range(self.steps):
@@ -766,7 +767,7 @@ class Stair:
                 step_y = self.y + (i * self.step_height)  # Move up for each step
                 # Draw the filled area under the step
                 glBegin(GL_QUADS)
-                glColor3f(*base_color)
+                glColor3f(*self.color)
                 glVertex2f(step_x, self.y)  # Bottom left of the filled area
                 glVertex2f(step_x + self.step_width, self.y)  # Bottom right of the filled area
                 glVertex2f(step_x + self.step_width, step_y)  # Top right of the filled area
@@ -776,7 +777,7 @@ class Stair:
                 step_y = self.y + (self.steps - i - 1) * self.step_height  # Move down for each step
                 # Draw the filled area under the step
                 glBegin(GL_QUADS)
-                glColor3f(*base_color)
+                glColor3f(*self.color)
                 glVertex2f(step_x, self.y)  # Bottom left of the filled area
                 glVertex2f(step_x + self.step_width, self.y)  # Bottom right of the filled area
                 glVertex2f(step_x + self.step_width, step_y)  # Top right of the filled area
@@ -785,7 +786,7 @@ class Stair:
 
             # Draw the step as a filled rectangle
             glBegin(GL_QUADS)
-            glColor3f(*base_color)
+            glColor3f(*self.color)
             
             if self.direction == "up":
                 step_y = self.y + (i * self.step_height)
@@ -835,16 +836,17 @@ class Stair:
         return False
 
 class Ramp:
-    def __init__(self, x, y, width, height, incline=True):  
+    def __init__(self, x, y, width, height, incline=True, color=((0.5, 0.5, 0.5))):  
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.incline = incline  # True = Incline, False = Decline
+        self.color = color
 
     def draw(self):
         """Draw the ramp as a triangle with incline or decline."""
-        glColor3f(0.6, 0.3, 0.1)  
+        glColor3f(*self.color)  
         glBegin(GL_TRIANGLES)
         if self.incline:
             glVertex2f(self.x, self.y)  # Bottom-left
@@ -990,16 +992,17 @@ class BumpyRoad:
         return False
     
 class Pillar:
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height, color= (0.5,0.5,0.5)):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
+        self.color = color
 
     def draw(self):
         """Draws the pillar."""
         """Draws a rectangular pillar as an obstacle."""
-        glColor3f(0.6, 0.3, 0.1)  # Brownish pillar color
+        glColor3f(*self.color)
         glBegin(GL_QUADS)
         glVertex2f(self.x, self.y)                      # Bottom-left
         glVertex2f(self.x + self.width, self.y)               # Bottom-right
@@ -1094,6 +1097,8 @@ class ManageDialogue:
         self.scene_dialogues[0] = [
             {"id": "scene0_controls", "text": "Use arrow keys to move your character.", "x": 10, "y": 450},
             {"id": "scene0_jump", "text": "and press SPACE to jump.", "x": 10, "y": 450},
+            {"id": "scene0_color1", "text": "You can change color of obstacles by pressing on the following keys: ", "x": 10, "y": 450},
+            {"id": "scene0_color2", "text": "G --> Grey(Default) R-->Red Y-->Yellow", "x": 10, "y": 450},
             {"id": "scene0_intro", "text": "Scene 1: A Young Diagnosis", "x": 10, "y": 450},
             {"id": "scene0_1", "text": "This young patient was recently diagnosed with Multiple Sclerosis.", "x": 10, "y": 450},
             {"id": "scene0_2", "text": "Multiple Sclerosis (MS) is a chronic condition affecting the nervous system.", "x": 10, "y": 450},
@@ -1106,7 +1111,7 @@ class ManageDialogue:
             {"id": "scene1_intro", "text": "Keep going!", "x": 10, "y": 450},
         ]
         self.scene_dialogues[2] = [
-            {"id": "scene2_intro", "text": "A few bumps won’t slow him down. Not yet.", "x": 10, "y": 450},
+            {"id": "scene2_intro", "text": "A few bumps won’t slow him down much. Not yet.", "x": 10, "y": 450},
             {"id": "scene2_ms", "text": "MS can cause balance issues, making uneven surfaces challenging,... ", "x": 10, "y": 450},
              {"id": "scene2_ms", "text": "...even at this young age.", "x": 10, "y": 450},
             {"id": "scene0_5", "text": "Mission 2: Cross the uneven road", "x": 10, "y": 450}
@@ -1126,7 +1131,9 @@ class ManageDialogue:
             {"id": "scene5_transition", "text": "Multiple Sclerosis affects mobility over time. Simple tasks can become difficult.", "x": 10, "y": 450},
             {"id": "scene5_transition1", "text": "Climbing these stairs was easy a long time ago...", "x": 10, "y": 450},
             {"id": "scene5_transition2", "text": "...but now, they're an imposible barrier.", "x": 10, "y": 450},
-            {"id": "scene5_transition3", "text": "Sadly, many places forget about accessibility. ", "x": 10, "y": 450},
+            {"id": "scene5_transition2", "text": "Especially with the lack of accibilty in many public spaces...", "x": 10, "y": 450},
+            {"id": "scene5_transition2", "text": "...like the missing ramp here.", "x": 10, "y": 450},
+            {"id": "scene5_transition3", "text": "Sadly, many places still forget about accessibility. ", "x": 10, "y": 450},
             {"id": "scene5_transition4", "text": "Options like ramps and elevators, should be available everywhere. ", "x": 10, "y": 450},
             {"id": "scene5_transition5", "text": "Caring about MS means caring about making spaces open to everyone.", "x": 10, "y": 450},
             {"id": "scene5_transition6", "text": "Accessibility isn't a privilege—it's a necessity. ", "x": 10, "y": 450},
@@ -1373,13 +1380,13 @@ class GameScenes:
         self.current_scene_index = 0  # Start with the first scene
         self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
-            # Part 1
+            # Part 1 (walking) 
             Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350), Coin(270, 170), Coin(430, 270), Coin(600, 370)]),  
-            Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down"), Coin(750, 80)]), 
-            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20),Coin(400, 80), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]), 
-            # Part 2
+            Scene([Pillar(0, 50, 150, 350), Stair(150, 50, 550, 350, 10,"down"),  Coin(610, 150), Coin(440, 250), Coin(270, 350),  Coin(750, 70)]),
+            Scene([BumpyRoad(100,50,100,20),Coin(135, 80), BumpyRoad(250,50,100,20),Coin(285, 80), BumpyRoad(400,50,100,20),Coin(440, 80), BumpyRoad(550,50,100,20), Coin(590, 80)]), 
+            # Part 2 (wheelchair)
             Scene([Ramp(150, 50, 700, 50, True)]), 
-            Scene([BumpyRoad(100,50,100,20), BumpyRoad(250,50,100,20), BumpyRoad(400,50,100,20), BumpyRoad(550,50,100,20)]),
+            Scene([BumpyRoad(100,50,100,20),Coin(135, 80), BumpyRoad(250,50,100,20),Coin(285, 80), BumpyRoad(400,50,100,20),Coin(440, 80), BumpyRoad(550,50,100,20), Coin(590, 80)]), 
             Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)])
         ]
         self.scene_change = False  # Flag to track scene changes
@@ -1462,6 +1469,32 @@ def main():
         
         # Get keyboard state
         keys = pygame.key.get_pressed()
+
+        # User can press on Y, G, R to change colors of the stair, ramp, and pillar (Yellow, Grey, Red)
+        if keys[pygame.K_r]: #if R key is pressed
+            for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
+                if isinstance(obj, Stair):
+                    obj.color = (0.5, 0.0, 0.0) # Change stair to red
+                elif isinstance(obj, Ramp):
+                    obj.color = (0.5, 0.0, 0.0) # Change ramp to red
+                elif isinstance(obj, Pillar):
+                    obj.color = (0.5, 0.0, 0.0)  # Change ramp to red
+        if keys[pygame.K_y]: #if R key is pressed
+            for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
+                if isinstance(obj, Stair):
+                    obj.color = (0.85, 0.65, 0.13) # Change stair to red
+                elif isinstance(obj, Ramp):
+                    obj.color = (0.85, 0.65, 0.13)  # Change ramp to red
+                elif isinstance(obj, Pillar):
+                    obj.color = (0.85, 0.65, 0.13)  # Change ramp to red
+        if keys[pygame.K_g]: #if R key is pressed
+            for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
+                if isinstance(obj, Stair):
+                    obj.color = (0.5,0.5,0.5)  # Change stair to red
+                elif isinstance(obj, Ramp):
+                    obj.color = (0.5,0.5,0.5)  # Change ramp to red
+                elif isinstance(obj, Pillar):
+                    obj.color = (0.5,0.5,0.5)  # Change ramp to red
 
         # Set up 2D rendering with bottom-left origin
         glMatrixMode(GL_PROJECTION)
