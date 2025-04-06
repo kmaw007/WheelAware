@@ -17,9 +17,9 @@ pygame.display.set_mode((display_width, display_height), DOUBLEBUF | OPENGL)
 glEnable(GL_DEPTH_TEST)  # Enable depth testing
 glDepthFunc(GL_LESS)  # Specify depth test function
 glClearColor(0.0, 0.0, 0.0, 1.0)  # Set clear color (black)
-
+   
+# Set up 2D rendering with correct coordinates
 def setup_2d():
-    """Set up 2D rendering with correct coordinates"""
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     # Use bottom-left origin for consistency with OpenGL
@@ -28,8 +28,8 @@ def setup_2d():
     glLoadIdentity()
     glDisable(GL_DEPTH_TEST)
 
+# Set up 3D rendering
 def setup_3d():
-    """Set up 3D rendering"""
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluPerspective(45, (800/600), 0.1, 50.0)
@@ -37,8 +37,9 @@ def setup_3d():
     glLoadIdentity()
     glEnable(GL_DEPTH_TEST)
 
+# Draw a rotating yellow sphere-like sun
 def draw_3d_sun(angle):
-    """Draw a rotating yellow sphere-like sun"""
+    
     setup_3d()  # Switch to 3D mode
     
     glPushMatrix()
@@ -85,8 +86,9 @@ def draw_3d_sun(angle):
     glPopMatrix()
     setup_2d()  # Switch back to 2D mode
 
+# Draw building with transformations and shadow
 def draw_building(x, y, width, height, color):
-    """Draw building with transformations and shadow"""
+    
     glPushMatrix()
     
     # Move to position
@@ -96,22 +98,21 @@ def draw_building(x, y, width, height, color):
     # Scale the building
     glScalef(1.0, height/100.0, 1.0) 
     
-    # Draw building relative to origin
+    # Draw building
     vertices = [
         (0, 0),  # Bottom left
         (width, 0),  # Bottom right
         (width, 100),  # Top right
         (0, 100)  # Top left
     ]
-    
-    # Draw main building
+
     glBegin(GL_QUADS)
     glColor3f(*color)
     for vertex in vertices:
         glVertex2f(*vertex)
     glEnd()
     
-    # Draw shadow with rotation
+    # Draw shadow
     shadow_width = width * 0.2
     shadow_color = (color[0] * 0.5, color[1] * 0.5, color[2] * 0.5)
     
@@ -125,9 +126,8 @@ def draw_building(x, y, width, height, color):
     
     glPopMatrix()
 
-# Function to draw windows
+# Function to draw windows that can be used on a building
 def draw_window(x, y, width, height):
-    """Draw window with the same static rotation as buildings"""
     glPushMatrix()
     
     # Move to position
@@ -178,7 +178,7 @@ def draw_streetlight(x, y):
     
     # Translate to light source point, rotate, then translate back
     glTranslatef(x + 2.5, y + 155, 0)  # Move to light source
-    glRotatef(-13, 0, 0, 1)  # Rotate 15 degrees counter-clockwise 
+    glRotatef(-13, 0, 0, 1)  # Rotate 13 degrees counter-clockwise 
     glTranslatef(-(x + 2.5), -(y + 155), 0)  # Move back
     
     # Draw the rotated cone-shaped light
@@ -188,10 +188,8 @@ def draw_streetlight(x, y):
     glVertex2f(x + 35, 50)  # Right side of light on pavement
     glEnd()
     
-    # Restore transformation matrix
     glPopMatrix()
-    
-    glDisable(GL_BLEND)  # Disable transparency after drawing
+    glDisable(GL_BLEND)
 
 # Function to draw pavement
 def draw_pavement():
@@ -207,8 +205,8 @@ def draw_pavement():
 # Function to draw clouds
 def draw_cloud(x, y, size):
     glColor3f(1.0, 1.0, 1.0)  # White color for clouds
-    for offset_x in [-size * 0.5, 0, size * 0.50]:  # Horizontal offsets
-        for offset_y in [-size * 0.3, 0, size * 0.3]:  # Vertical offsets
+    for offset_x in [-size * 0.5, 0, size * 0.50]:  
+        for offset_y in [-size * 0.3, 0, size * 0.3]: 
             glBegin(GL_TRIANGLE_FAN)
             for angle in range(0, 360, 10):  # Draw a circle
                 rad = math.radians(angle)
@@ -228,10 +226,10 @@ def draw_sky():
         
         glBegin(GL_QUADS)
         glColor3f(r, g, b)
-        glVertex2f(0, y_start)  #Bottom left
-        glVertex2f(800, y_start)   #Bottom right
-        glVertex2f(800, y_end)  #Top right
-        glVertex2f(0, y_end)  #Top left
+        glVertex2f(0, y_start)  
+        glVertex2f(800, y_start)  
+        glVertex2f(800, y_end)  
+        glVertex2f(0, y_end) 
         glEnd()
 
 # Function to render text as an OpenGL texture
@@ -283,7 +281,7 @@ class Character:
         # Prevent going off-screen
         self.x = max(0, min(self.x, self.window_width - self.width))
 
-        # Jumping - only allowed for walking character
+        # Jumping (only allowed for walking character)
         if self.character_type == "walking" and keys[pygame.K_SPACE] and self.on_ground:
             self.velocity_y = self.jump_power
             self.on_ground = False
@@ -301,7 +299,7 @@ class Character:
                     break  # Exit the loop if on ground
 
         # Handle ground collision
-        ground_y = self.ground_level  # Pavement is at y=50 in OpenGL coordinates
+        ground_y = self.ground_level  # Pavement is at y=50
         if self.y + self.height > self.window_height - ground_y:
             self.y = self.window_height - ground_y - self.height
             self.velocity_y = 0
@@ -312,30 +310,31 @@ class Character:
             self.draw_walking_character()
         elif self.character_type == "wheelchair":
             self.draw_wheelchair_character()
-    
+
+    #Draw a simple walking character
     def draw_walking_character(self):
-        """Draw a simple walking character"""
+       
         # Convert coordinates
         char_x = self.x
         char_y = self.window_height - self.y - self.height
         
-        # Body (simple rectangle)
+        # Body (rectangle)
         glColor3f(0.2, 0.4, 0.8)  # Blue
         glBegin(GL_QUADS)
-        glVertex2f(char_x + 5, char_y)  # Bottom left
-        glVertex2f(char_x + self.width - 5, char_y)  # Bottom right
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 10)  # Top right
-        glVertex2f(char_x + 5, char_y + self.height - 10)  # Top left
+        glVertex2f(char_x + 5, char_y)  
+        glVertex2f(char_x + self.width - 5, char_y) 
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 10) 
+        glVertex2f(char_x + 5, char_y + self.height - 10)  
         glEnd()
         
-        # Head (simple circle)
+        # Head (circle)
         glColor3f(0.9, 0.75, 0.65)  # Skin color
         radius = 8
         segments = 12
         glBegin(GL_TRIANGLE_FAN)
         center_x = char_x + self.width/2
         center_y = char_y + self.height - 5
-        glVertex2f(center_x, center_y)  # Center
+        glVertex2f(center_x, center_y)  
         for i in range(segments + 1):
             angle = 2.0 * math.pi * i / segments
             glVertex2f(center_x + radius * math.cos(angle),
@@ -353,9 +352,9 @@ class Character:
         small_radius = wheel_radius * 0.5
         glColor3f(0.3, 0.3, 0.3)  # Dark gray
         glBegin(GL_TRIANGLE_FAN)
-        center_x = char_x + wheel_radius  # Moved to back
+        center_x = char_x + wheel_radius  
         center_y = char_y + wheel_radius
-        glVertex2f(center_x, center_y)  # Center
+        glVertex2f(center_x, center_y)  
         for i in range(13):
             angle = 2.0 * math.pi * i / 12
             glVertex2f(center_x + wheel_radius * math.cos(angle),
@@ -364,9 +363,9 @@ class Character:
         
         # Small front wheel
         glBegin(GL_TRIANGLE_FAN)
-        small_center_x = char_x + self.width - small_radius  # Moved to front
+        small_center_x = char_x + self.width - small_radius 
         small_center_y = char_y + small_radius
-        glVertex2f(small_center_x, small_center_y)  # Center
+        glVertex2f(small_center_x, small_center_y) 
         for i in range(13):
             angle = 2.0 * math.pi * i / 12
             glVertex2f(small_center_x + small_radius * math.cos(angle),
@@ -374,31 +373,31 @@ class Character:
         glEnd()
 
         # Draw character body in two parts
-        # Lower body (darker blue for legs)
-        glColor3f(0.1, 0.2, 0.6)  # Darker blue
+        # Lower body (darker blue for seat)
+        glColor3f(0.1, 0.2, 0.6) 
         glBegin(GL_QUADS)
-        glVertex2f(char_x + 5, char_y + wheel_radius)  # Bottom left
-        glVertex2f(char_x + self.width - 5, char_y + wheel_radius)  # Bottom right
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Mid right
-        glVertex2f(char_x + 5, char_y + self.height - 25)  # Mid left
+        glVertex2f(char_x + 5, char_y + wheel_radius)  
+        glVertex2f(char_x + self.width - 5, char_y + wheel_radius) 
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  
+        glVertex2f(char_x + 5, char_y + self.height - 25)  
         glEnd()
         
-        # Upper body (original blue)
-        glColor3f(0.2, 0.4, 0.8)  # Original blue
+        # Upper body (blue)
+        glColor3f(0.2, 0.4, 0.8)  #  Blue
         glBegin(GL_QUADS)
-        glVertex2f(char_x + 5, char_y + self.height - 25)  # Mid left
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Mid right
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 10)  # Top right
-        glVertex2f(char_x + 5, char_y + self.height - 10)  # Top left
+        glVertex2f(char_x + 5, char_y + self.height - 25) 
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 10) 
+        glVertex2f(char_x + 5, char_y + self.height - 10)  
         glEnd()
         
-        # Head (same as before)
-        glColor3f(0.9, 0.75, 0.65)  # Skin color
+        # Head (same as walking character)
+        glColor3f(0.9, 0.75, 0.65)  
         radius = 8
         glBegin(GL_TRIANGLE_FAN)
         center_x = char_x + self.width/2
         center_y = char_y + self.height - 5
-        glVertex2f(center_x, center_y)  # Center
+        glVertex2f(center_x, center_y)  
         for i in range(13):
             angle = 2.0 * math.pi * i / 12
             glVertex2f(center_x + radius * math.cos(angle),
@@ -407,7 +406,7 @@ class Character:
 
 class Scene:
     def __init__(self, obstacles):
-        self.obstacles = obstacles  # Store obstacles in the scene
+        self.obstacles = obstacles  # Stores obstacles in the scene
 
     def draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -421,38 +420,38 @@ class Scene:
         draw_cloud(600, 450, 35)
         draw_cloud(300, 500, 25)
 
-        # Draw background buildings (back layer)
-        # y-coordinate should be close to ground level (50), height extends upward
-        draw_building(0, 50, 100, 400, (105/255.0, 105/255.0, 105/255.0))      # Taller building
-        draw_building(150, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))    # Medium height
-        draw_building(400, 50, 120, 500, (105/255.0, 105/255.0, 105/255.0))    # Very tall building
-        draw_building(600, 50, 120, 200, (105/255.0, 105/255.0, 105/255.0))    # Shorter building
-        draw_building(700, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))    # Medium-tall building
+        # Draw background buildings 
+        draw_building(0, 50, 100, 400, (105/255.0, 105/255.0, 105/255.0))      
+        draw_building(150, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0))   
+        draw_building(400, 50, 120, 500, (105/255.0, 105/255.0, 105/255.0))   
+        draw_building(600, 50, 120, 200, (105/255.0, 105/255.0, 105/255.0))
+        draw_building(700, 50, 120, 350, (105/255.0, 105/255.0, 105/255.0)) 
 
         # Draw front buildings (darker)
-        draw_building(100, 50, 100, 300, (50/255.0, 50/255.0, 50/255.0))       # Tall dark building
-        draw_building(250, 50, 150, 250, (50/255.0, 50/255.0, 50/255.0))       # Medium dark building
-        draw_building(450, 50, 200, 200, (50/255.0, 50/255.0, 50/255.0))       # Medium-tall dark building
-        draw_building(700, 50, 80, 340, (50/255.0, 50/255.0, 50/255.0))        # Another tall dark building
+        draw_building(100, 50, 100, 300, (50/255.0, 50/255.0, 50/255.0))       
+        draw_building(250, 50, 150, 250, (50/255.0, 50/255.0, 50/255.0))       
+        draw_building(450, 50, 200, 200, (50/255.0, 50/255.0, 50/255.0))       
+        draw_building(700, 50, 80, 340, (50/255.0, 50/255.0, 50/255.0))   
+          
         # Draw windows on buildings
         for i in range(3):
-            # Building 1 windows
+            # Building #1 windows
             height = 310
             while height > 50:
                 draw_window(117 + i * 25, height, 15, 15)
                 height = height - 30
             
-            # Building 2 windows
+            # Building #2 windows
             draw_window(270 + i * 45, 250, 20, 30)
             draw_window(270 + i * 45, 200, 20, 30)
             draw_window(270 + i * 45, 150, 20, 30)
             draw_window(270 + i * 45, 100, 20, 30)
 
-            # Building 3 windows
+            # Building #3 windows
             draw_window(550 + i * 35, 180, 20, 50)
             draw_window(550 + i * 35, 100, 20, 50)
 
-            # Building 4 windows
+            # Building #4 windows
             height = 330
             while height > 50:
                 draw_window(708 + i * 25, height, 15, 15)
@@ -465,11 +464,8 @@ class Scene:
         draw_streetlight(500, 50)
         draw_streetlight(680, 50)
 
-        # Draw road and pavement last
+        # Draw pavement as last
         draw_pavement()
-        
-        for obstacle in self.obstacles:
-            obstacle.draw()
     
 
 
@@ -479,19 +475,16 @@ class Stair:
         self.y = y
         self.width = width
         self.height = height
-        self.steps = steps  # Number of steps in the staircase
-        self.direction = direction  # Direction of the stair (up or down)
+        self.steps = steps  
+        self.direction = direction  
         self.color = color
         
         # Calculate dimensions for each step
         self.step_width = width / steps
         self.step_height = height / steps
-    
-    def draw(self):
-        """Draw a staircase with the specified number of steps."""
-        # Base color for the stairs
-        
-        
+
+    #Draw a staircase with the specified number of steps. 
+    def draw(self):      
         # Draw the filled area under each step
         for i in range(self.steps):
             step_x = self.x + i * self.step_width
@@ -577,7 +570,6 @@ class Ramp:
         self.color = color
 
     def draw(self):
-        """Draw the ramp as a triangle with incline or decline."""
         glColor3f(*self.color)  
         glBegin(GL_TRIANGLES)
         if self.incline:
@@ -589,9 +581,8 @@ class Ramp:
             glVertex2f(self.x + self.width, self.y)  # Bottom-right
             glVertex2f(self.x, self.y)  # Bottom-left
         glEnd()
-
+    
     def collides_with(self, player):
-        """Handles player collision with the ramp."""
         char_x = player.x
         char_bottom = player.window_height - (player.y + player.height)  
 
@@ -623,7 +614,6 @@ class BumpyRoad:
         self.bump_width = width / self.bumps
         
     def draw(self):
-        """Draw a realistic-looking bumpy road with 3D effect."""
         # Draw the base road
         glBegin(GL_QUADS)
         glColor3f(0.3, 0.3, 0.3)  # Dark gray for the road base
@@ -732,18 +722,15 @@ class Pillar:
         self.color = color
 
     def draw(self):
-        """Draws the pillar."""
-        """Draws a rectangular pillar as an obstacle."""
         glColor3f(*self.color)
         glBegin(GL_QUADS)
-        glVertex2f(self.x, self.y)                      # Bottom-left
-        glVertex2f(self.x + self.width, self.y)               # Bottom-right
-        glVertex2f(self.x + self.width, self.y + self.height)      # Top-right
-        glVertex2f(self.x, self.y + self.height)              # Top-left
+        glVertex2f(self.x, self.y)                      
+        glVertex2f(self.x + self.width, self.y)               
+        glVertex2f(self.x + self.width, self.y + self.height)      
+        glVertex2f(self.x, self.y + self.height)         
         glEnd()
 
     def collides_with(self, player):
-        """Handles collision with the player character."""
         char_x = player.x
         char_y = player.y
         char_width = player.width
@@ -761,7 +748,7 @@ class Pillar:
                 player.on_ground = True
                 return True
 
-            # **Horizontal Collision**: Block movement when walking into the pillar
+            # Horizontal Collision
             if char_x + char_width >= self.x and player.x < self.x:  # Moving right
                 player.x = self.x - char_width  # Stop at the left side of the pillar
             elif char_x <= self.x + self.width and player.x > self.x:  # Moving left
@@ -874,19 +861,19 @@ class ManageDialogue:
         ]
 
     def setup_location_dialogues(self):
-        """Set up dialogues for specific locations within scenes"""
+        #Set up dialogues for specific locations within scenes
         # Scene 0 locations
         self.location_dialogues[0] = [ 
             {"id": "stairs_top", "x_range": (600, 800), "text": "Great! That was easy.", "x": 10, "y": 450},
             
         ]
     def add_dialogue_box(self, dialogue_id, text, x, y):
-        """Add a new dialogue box to the list."""
+        #Add a new dialogue box to the list.
         new_box = DialogueBox(text, x, y)
         self.dialogue_boxes.append({"id": dialogue_id, "box": new_box})
 
     def show_dialogue(self, dialogue_id):
-        """Show a specific dialogue by ID"""
+        #Show a specific dialogue by ID
         # Hide any currently visible dialogue
         self.dismiss_current_dialogue()
         
@@ -901,12 +888,12 @@ class ManageDialogue:
         return False
 
     def dismiss_current_dialogue(self):
-        """Dismiss the currently visible dialogue"""
+        #Dismiss the currently visible dialogue
         if 0 <= self.current_dialogue_index < len(self.dialogue_boxes):
             self.dialogue_boxes[self.current_dialogue_index]["box"].dismiss()
 
     def check_scene_dialogues(self, scene_index):
-        """Check if there are dialogues to show for the current scene"""
+        #Check if there are dialogues to show for the current scene
         if scene_index in self.scene_dialogues:
             for dialogue_info in self.scene_dialogues[scene_index]:
                 if dialogue_info["id"] not in self.shown_dialogues:
@@ -916,7 +903,7 @@ class ManageDialogue:
         return False
 
     def check_location_dialogues(self, scene_index, player_x):
-        """Check if there are dialogues to show for the current location"""
+        #Check if there are dialogues to show for the current location
         if scene_index in self.location_dialogues:
             for dialogue_info in self.location_dialogues[scene_index]:
                 x_min, x_max = dialogue_info["x_range"]
@@ -927,7 +914,7 @@ class ManageDialogue:
         return False
 
     def update(self, events, scene_index, player_x):
-        """Update the game state, including dialogue box management."""
+        #Update the game state, including dialogue box management.
         current_time = pygame.time.get_ticks()
         
         # Always check for location-based dialogues first
@@ -947,7 +934,7 @@ class ManageDialogue:
                         self.check_scene_dialogues(scene_index)
 
     def draw(self):
-        """Draw the current dialogue box if it exists."""
+        #Draw the current dialogue box if it exists.
         if 0 <= self.current_dialogue_index < len(self.dialogue_boxes):
             self.dialogue_boxes[self.current_dialogue_index]["box"].draw()
 
@@ -994,7 +981,7 @@ class Coin:
         # Translate to center point for rotation
         glTranslatef(coin_center_x, coin_center_y, 0)
         
-        # Apply rotation around Y axis (simulated with scaling)
+        # Apply rotation around Y axis 
         rot_rad = math.radians(self.rotation)
         # Scale X based on rotation to simulate perspective
         scale_x = abs(math.cos(rot_rad)) * 0.7 + 0.3  # Range from 0.3 to 1.0
@@ -1011,7 +998,7 @@ class Coin:
         glDisable(GL_BLEND)
         
     def draw_3d_coin(self, cx, cy, radius, alpha):
-        """Draw a 3D-looking coin with proper shading"""
+        #Draw a 3D-looking coin with shading
         segments = 30
         inner_radius = radius * 0.85
         
@@ -1055,7 +1042,7 @@ class Coin:
         self.draw_highlight(0, 0, radius * 0.5, alpha)
     
     def draw_highlight(self, cx, cy, radius, alpha):
-        """Draw a highlight on the coin to enhance 3D appearance"""
+        #Draw a highlight on the coin to enhance 3D appearance
         segments = 20
         rot_rad = math.radians(self.rotation)
         
@@ -1078,7 +1065,7 @@ class Coin:
         glEnd()
 
     def collides_with(self, player):
-        """Detect collision with the player."""
+        #Detect collision with the player.
         if self.collected:
             return False
             
@@ -1164,7 +1151,7 @@ class ManageScenes:
             self.scene_change = False
 
     def draw(self):
-        """Draw the current scene and player."""
+        #Draw the current scene and player.
         # Get the current scene and draw its background first
         current_scene = self.scenes[self.current_scene_index]
         current_scene.draw()  # This assumes Scene class has a draw_background method
@@ -1201,31 +1188,31 @@ def main():
         # Get keyboard state
         keys = pygame.key.get_pressed()
 
-        # User can press on Y, G, R to change colors of the stair, ramp, and pillar (Yellow, Grey, Red)
+        # Press on Y, G, R to change colors of the stair, ramp, and pillar (Yellow, Grey, Red)
         if keys[pygame.K_r]: #if R key is pressed
             for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
                 if isinstance(obj, Stair):
-                    obj.color = (0.5, 0.0, 0.0) # Change stair to red
+                    obj.color = (0.5, 0.0, 0.0) 
                 elif isinstance(obj, Ramp):
-                    obj.color = (0.5, 0.0, 0.0) # Change ramp to red
+                    obj.color = (0.5, 0.0, 0.0) 
                 elif isinstance(obj, Pillar):
-                    obj.color = (0.5, 0.0, 0.0)  # Change ramp to red
-        if keys[pygame.K_y]: #if R key is pressed
+                    obj.color = (0.5, 0.0, 0.0)  
+        if keys[pygame.K_y]: #if Y key is pressed
             for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
                 if isinstance(obj, Stair):
-                    obj.color = (0.85, 0.65, 0.13) # Change stair to red
+                    obj.color = (0.85, 0.65, 0.13) 
                 elif isinstance(obj, Ramp):
-                    obj.color = (0.85, 0.65, 0.13)  # Change ramp to red
+                    obj.color = (0.85, 0.65, 0.13)  
                 elif isinstance(obj, Pillar):
-                    obj.color = (0.85, 0.65, 0.13)  # Change ramp to red
-        if keys[pygame.K_g]: #if R key is pressed
+                    obj.color = (0.85, 0.65, 0.13)  
+        if keys[pygame.K_g]: #if G key is pressed
             for obj in game_scene.scenes[game_scene.current_scene_index].obstacles:
                 if isinstance(obj, Stair):
-                    obj.color = (0.5,0.5,0.5)  # Change stair to red
+                    obj.color = (0.5,0.5,0.5)  
                 elif isinstance(obj, Ramp):
-                    obj.color = (0.5,0.5,0.5)  # Change ramp to red
+                    obj.color = (0.5,0.5,0.5)  
                 elif isinstance(obj, Pillar):
-                    obj.color = (0.5,0.5,0.5)  # Change ramp to red
+                    obj.color = (0.5,0.5,0.5)  
 
         # Set up 2D rendering with bottom-left origin
         glMatrixMode(GL_PROJECTION)
