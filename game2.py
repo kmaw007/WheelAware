@@ -37,7 +37,7 @@ def setup_3d():
     glLoadIdentity()
     glEnable(GL_DEPTH_TEST)
 
-def draw_3d_cube(angle):
+def draw_3d_sun(angle):
     """Draw a rotating yellow sphere-like sun"""
     setup_3d()  # Switch to 3D mode
     
@@ -1246,7 +1246,7 @@ def main():
         
         # Draw 3D sun cube
         setup_3d()
-        draw_3d_cube(angle)
+        draw_3d_sun(angle)
         angle += 1
         
         # Return to 2D for UI
