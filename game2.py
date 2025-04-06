@@ -52,8 +52,8 @@ def draw_3d_cube(angle):
     glRotatef(angle, 1, 1, 0)
 
     # Draw a more spherical sun with more faces
-    segments = 15  # Increase this number for more smoothness
-    rings = 15    # Increase this number for more smoothness
+    segments = 15  # Higher number = more smoothness
+    rings = 15    
 
     # Draw the sphere using triangle strips
     for i in range(rings):
@@ -133,7 +133,6 @@ def draw_window(x, y, width, height):
     # Move to position
     glTranslatef(x, y, 0)
 
-    
     # Draw the window
     vertices = [
         (0, 0),
@@ -179,7 +178,7 @@ def draw_streetlight(x, y):
     
     # Translate to light source point, rotate, then translate back
     glTranslatef(x + 2.5, y + 155, 0)  # Move to light source
-    glRotatef(-13, 0, 0, 1)  # Rotate 15 degrees counter-clockwise (adjust angle as needed)
+    glRotatef(-13, 0, 0, 1)  # Rotate 15 degrees counter-clockwise 
     glTranslatef(-(x + 2.5), -(y + 155), 0)  # Move back
     
     # Draw the rotated cone-shaped light
@@ -205,7 +204,7 @@ def draw_pavement():
     glVertex2f(0, 50)
     glEnd()
 
-# Function to draw pixelated clouds
+# Function to draw clouds
 def draw_cloud(x, y, size):
     glColor3f(1.0, 1.0, 1.0)  # White color for clouds
     for offset_x in [-size * 0.5, 0, size * 0.50]:  # Horizontal offsets
@@ -216,8 +215,9 @@ def draw_cloud(x, y, size):
                 glVertex2f(x + offset_x + size * 0.5 * math.cos(rad), y + offset_y + size * 0.5 * math.sin(rad))
             glEnd()
 
+# Function to draw gradient sky
 def draw_sky():
-    for i in range(100):  #Create a gradient from a soft blue to a pale orange
+    for i in range(100):  #Create a gradient from blue to orange
         t = i / 100.0
         r = (1.0 - t) * 0.7 + t * 0.9  #orange
         g = (1.0 - t) * 0.7 + t * 0.6  #green
@@ -232,25 +232,6 @@ def draw_sky():
         glVertex2f(800, y_start)   #Bottom right
         glVertex2f(800, y_end)  #Top right
         glVertex2f(0, y_end)  #Top left
-        glEnd()
-
-def draw_road():
-    glBegin(GL_QUADS)
-    glColor3f(0.1, 0.1, 0.1)  # Dark grey/black road color
-    glVertex2f(0, 0)
-    glVertex2f(800, 0)
-    glVertex2f(800, 30)  # Shorter than pavement
-    glVertex2f(0, 30)
-    glEnd()
-
-    # Lane markings (white dashes)
-    glColor3f(1.0, 1.0, 1.0)  # White color
-    for i in range(0, 800, 80):  # Spaced dashed lines
-        glBegin(GL_QUADS)
-        glVertex2f(i, 12)
-        glVertex2f(i + 30, 12)
-        glVertex2f(i + 30, 18)
-        glVertex2f(i, 18)
         glEnd()
 
 # Function to render text as an OpenGL texture
@@ -285,26 +266,13 @@ class Character:
         self.window_height = window_height
         self.ground_level = 50  # Height of the pavement
         self.character_type = character_type  # "walking" or "wheelchair"
-        self.facing_right = True  # Track which direction the character is facing
-        self.animation_frame = 0  # For walking animation
-        self.animation_time = 0  # Time tracker for animation
+       
 
-    def move(self, keys, obstacles, current_scene_index=0):  # Add scene index parameter
+    def move(self, keys, obstacles, current_scene_index=0): 
         # If in the last scene (index 5), prevent all movement
         if current_scene_index == 5:
-            return
-
-        # Rest of the movement code remains the same
-        original_x = self.x
-        original_y = self.y
-        
-        # Update animation time
-        self.animation_time += 1
-        if self.animation_time > 10:
-            self.animation_frame = (self.animation_frame + 1) % 4
-            self.animation_time = 0
-        
-        # Left/Right Movement
+            return  
+        # Left/Right Movement 
         if keys[pygame.K_LEFT]:
             self.x -= self.speed
             self.facing_right = False
@@ -341,335 +309,100 @@ class Character:
 
     def draw(self):
         if self.character_type == "walking":
-            self.draw_pixelated_character()
+            self.draw_walking_character()
         elif self.character_type == "wheelchair":
             self.draw_wheelchair_character()
     
-    def draw_pixelated_character(self):
-        # Create a pixelated human character instead of a red block
-        
-        # Adjust OpenGL coordinates for drawing
+    def draw_walking_character(self):
+        """Draw a simple walking character"""
+        # Convert coordinates
         char_x = self.x
         char_y = self.window_height - self.y - self.height
         
-        # Head (slightly darker skin tone)
+        # Body (simple rectangle)
+        glColor3f(0.2, 0.4, 0.8)  # Blue
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 5, char_y)  # Bottom left
+        glVertex2f(char_x + self.width - 5, char_y)  # Bottom right
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 10)  # Top right
+        glVertex2f(char_x + 5, char_y + self.height - 10)  # Top left
+        glEnd()
+        
+        # Head (simple circle)
         glColor3f(0.9, 0.75, 0.65)  # Skin color
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 10, char_y + self.height - 5)  # Bottom left
-        glVertex2f(char_x + self.width - 10, char_y + self.height - 5)  # Bottom right
-        glVertex2f(char_x + self.width - 10, char_y + self.height)  # Top right
-        glVertex2f(char_x + 10, char_y + self.height)  # Top left
-        glEnd()
-        
-        # Body (shirt)
-        glColor3f(0.2, 0.4, 0.8)  # Blue shirt
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 7, char_y + self.height - 20)  # Bottom left
-        glVertex2f(char_x + self.width - 7, char_y + self.height - 20)  # Bottom right
-        glVertex2f(char_x + self.width - 7, char_y + self.height - 5)  # Top right
-        glVertex2f(char_x + 7, char_y + self.height - 5)  # Top left
-        glEnd()
-        
-        # Legs (pants)
-        glColor3f(0.1, 0.1, 0.5)  # Dark blue pants
-        
-        # Left leg
-        glBegin(GL_QUADS)
-        leg_offset = 5 if (self.animation_frame % 2 == 0) else 3
-        glVertex2f(char_x + 10, char_y)  # Bottom left
-        glVertex2f(char_x + 15, char_y)  # Bottom right
-        glVertex2f(char_x + 15, char_y + self.height - 20 - leg_offset)  # Top right
-        glVertex2f(char_x + 10, char_y + self.height - 20)  # Top left
-        glEnd()
-        
-        # Right leg
-        glBegin(GL_QUADS)
-        leg_offset = 3 if (self.animation_frame % 2 == 0) else 5
-        glVertex2f(char_x + self.width - 15, char_y)  # Bottom left
-        glVertex2f(char_x + self.width - 10, char_y)  # Bottom right
-        glVertex2f(char_x + self.width - 10, char_y + self.height - 20 - leg_offset)  # Top right
-        glVertex2f(char_x + self.width - 15, char_y + self.height - 20)  # Top left
-        glEnd()
-        
-        # Arms
-        glColor3f(0.2, 0.4, 0.8)  # Same as shirt
-        
-        # Left arm
-        arm_swing = math.sin(self.animation_time * 0.2) * 3
-        arm_y_offset = 0 if self.on_ground else -5  # Raise arms when jumping
-        glBegin(GL_QUADS)
-        if self.facing_right:
-            glVertex2f(char_x + 5, char_y + self.height - 18 + arm_swing)
-            glVertex2f(char_x + 8, char_y + self.height - 18 + arm_swing)
-            glVertex2f(char_x + 8, char_y + self.height - 8 + arm_y_offset)
-            glVertex2f(char_x + 5, char_y + self.height - 8 + arm_y_offset)
-        else:
-            glVertex2f(char_x + 5, char_y + self.height - 18 - arm_swing)
-            glVertex2f(char_x + 8, char_y + self.height - 18 - arm_swing)
-            glVertex2f(char_x + 8, char_y + self.height - 8 + arm_y_offset)
-            glVertex2f(char_x + 5, char_y + self.height - 8 + arm_y_offset)
-        glEnd()
-        
-        # Right arm
-        glBegin(GL_QUADS)
-        if self.facing_right:
-            glVertex2f(char_x + self.width - 8, char_y + self.height - 18 - arm_swing)
-            glVertex2f(char_x + self.width - 5, char_y + self.height - 18 - arm_swing)
-            glVertex2f(char_x + self.width - 5, char_y + self.height - 8 + arm_y_offset)
-            glVertex2f(char_x + self.width - 8, char_y + self.height - 8 + arm_y_offset)
-        else:
-            glVertex2f(char_x + self.width - 8, char_y + self.height - 18 + arm_swing)
-            glVertex2f(char_x + self.width - 5, char_y + self.height - 18 + arm_swing)
-            glVertex2f(char_x + self.width - 5, char_y + self.height - 8 + arm_y_offset)
-            glVertex2f(char_x + self.width - 8, char_y + self.height - 8 + arm_y_offset)
-        glEnd()
-        
-        # Eyes
-        glColor3f(0.1, 0.1, 0.1)  # Black eyes
-        eye_x = char_x + 18 if self.facing_right else char_x + 12
-        glPointSize(2.0)
-        glBegin(GL_POINTS)
-        glVertex2f(eye_x, char_y + self.height - 3)
+        radius = 8
+        segments = 12
+        glBegin(GL_TRIANGLE_FAN)
+        center_x = char_x + self.width/2
+        center_y = char_y + self.height - 5
+        glVertex2f(center_x, center_y)  # Center
+        for i in range(segments + 1):
+            angle = 2.0 * math.pi * i / segments
+            glVertex2f(center_x + radius * math.cos(angle),
+                    center_y + radius * math.sin(angle))
         glEnd()
     
     def draw_wheelchair_character(self):
-        # Draw the same pixelated character but sitting in a wheelchair
+        """Draw a character sitting in a wheelchair"""
         char_x = self.x
         char_y = self.window_height - self.y - self.height
         
-        # First draw the wheelchair (under the character)
-        self.draw_wheelchair(char_x, char_y)
+        # Draw wheelchair first (behind the character)
+        # Big rear wheel
+        wheel_radius = self.width * 0.3
+        small_radius = wheel_radius * 0.5
+        glColor3f(0.3, 0.3, 0.3)  # Dark gray
+        glBegin(GL_TRIANGLE_FAN)
+        center_x = char_x + wheel_radius  # Moved to back
+        center_y = char_y + wheel_radius
+        glVertex2f(center_x, center_y)  # Center
+        for i in range(13):
+            angle = 2.0 * math.pi * i / 12
+            glVertex2f(center_x + wheel_radius * math.cos(angle),
+                    center_y + wheel_radius * math.sin(angle))
+        glEnd()
         
-        # Draw the seated character (adjusted position to sit in the wheelchair)
-        # The character will be slightly smaller and positioned to look like they're sitting
+        # Small front wheel
+        glBegin(GL_TRIANGLE_FAN)
+        small_center_x = char_x + self.width - small_radius  # Moved to front
+        small_center_y = char_y + small_radius
+        glVertex2f(small_center_x, small_center_y)  # Center
+        for i in range(13):
+            angle = 2.0 * math.pi * i / 12
+            glVertex2f(small_center_x + small_radius * math.cos(angle),
+                    small_center_y + small_radius * math.sin(angle))
+        glEnd()
+
+        # Draw character body in two parts
+        # Lower body (darker blue for legs)
+        glColor3f(0.1, 0.2, 0.6)  # Darker blue
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 5, char_y + wheel_radius)  # Bottom left
+        glVertex2f(char_x + self.width - 5, char_y + wheel_radius)  # Bottom right
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Mid right
+        glVertex2f(char_x + 5, char_y + self.height - 25)  # Mid left
+        glEnd()
         
-        # Head (slightly darker skin tone)
+        # Upper body (original blue)
+        glColor3f(0.2, 0.4, 0.8)  # Original blue
+        glBegin(GL_QUADS)
+        glVertex2f(char_x + 5, char_y + self.height - 25)  # Mid left
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Mid right
+        glVertex2f(char_x + self.width - 5, char_y + self.height - 10)  # Top right
+        glVertex2f(char_x + 5, char_y + self.height - 10)  # Top left
+        glEnd()
+        
+        # Head (same as before)
         glColor3f(0.9, 0.75, 0.65)  # Skin color
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 10, char_y + self.height - 10)  # Bottom left
-        glVertex2f(char_x + self.width - 10, char_y + self.height - 10)  # Bottom right
-        glVertex2f(char_x + self.width - 10, char_y + self.height - 5)  # Top right
-        glVertex2f(char_x + 10, char_y + self.height - 5)  # Top left
-        glEnd()
-        
-        # Body (shirt) - shortened to look seated
-        glColor3f(0.2, 0.4, 0.8)  # Blue shirt
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 7, char_y + self.height - 25)  # Bottom left
-        glVertex2f(char_x + self.width - 7, char_y + self.height - 25)  # Bottom right
-        glVertex2f(char_x + self.width - 7, char_y + self.height - 10)  # Top right
-        glVertex2f(char_x + 7, char_y + self.height - 10)  # Top left
-        glEnd()
-        
-        # Legs (pants) - bent to look seated
-        glColor3f(0.1, 0.1, 0.5)  # Dark blue pants
-        
-        # Left leg - bent at knee
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 10, char_y + 5)  # Foot
-        glVertex2f(char_x + 15, char_y + 5)  # Foot
-        glVertex2f(char_x + 15, char_y + self.height - 25)  # Hip
-        glVertex2f(char_x + 10, char_y + self.height - 25)  # Hip
-        glEnd()
-        
-        # Right leg - bent at knee
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + self.width - 15, char_y + 5)  # Foot
-        glVertex2f(char_x + self.width - 10, char_y + 5)  # Foot
-        glVertex2f(char_x + self.width - 10, char_y + self.height - 25)  # Hip
-        glVertex2f(char_x + self.width - 15, char_y + self.height - 25)  # Hip
-        glEnd()
-        
-        # Arms - on wheelchair
-        glColor3f(0.2, 0.4, 0.8)  # Same as shirt
-        
-        # Left arm on wheelchair
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + 5, char_y + self.height - 25)  # Shoulder
-        glVertex2f(char_x + 8, char_y + self.height - 25)  # Shoulder
-        glVertex2f(char_x + 8, char_y + self.height - 15)  # Hand on wheel
-        glVertex2f(char_x + 5, char_y + self.height - 15)  # Hand on wheel
-        glEnd()
-        
-        # Right arm on wheelchair
-        glBegin(GL_QUADS)
-        glVertex2f(char_x + self.width - 8, char_y + self.height - 25)  # Shoulder
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 25)  # Shoulder
-        glVertex2f(char_x + self.width - 5, char_y + self.height - 15)  # Hand on wheel
-        glVertex2f(char_x + self.width - 8, char_y + self.height - 15)  # Hand on wheel
-        glEnd()
-        
-        # Eyes
-        glColor3f(0.1, 0.1, 0.1)  # Black eyes
-        eye_x = char_x + 18 if self.facing_right else char_x + 12
-        glPointSize(2.0)
-        glBegin(GL_POINTS)
-        glVertex2f(eye_x, char_y + self.height - 7)
-        glEnd()
-    
-    def draw_wheelchair(self, x, y):
-        """Draw a more realistic wheelchair."""
-        # Dimensions
-        wheel_radius = self.width * 0.35
-        chair_width = self.width * 0.9
-        
-        # Wheels (larger, more detailed)
-        wheel_centers = [
-            (x + wheel_radius * 0.8, y + wheel_radius * 1.2),  # Left wheel
-            (x + chair_width - wheel_radius * 0.8, y + wheel_radius * 1.2)  # Right wheel
-        ]
-        
-        # Draw the wheels
-        for wheel_center in wheel_centers:
-            # Main wheel (black tire)
-            glColor3f(0.1, 0.1, 0.1)  # Black
-            glBegin(GL_TRIANGLE_FAN)
-            glVertex2f(*wheel_center)  # Center
-            for angle in range(0, 360, 10):
-                rad_angle = math.radians(angle)
-                glVertex2f(wheel_center[0] + wheel_radius * math.cos(rad_angle), 
-                          wheel_center[1] + wheel_radius * math.sin(rad_angle))
-            glEnd()
-            
-            # Inner wheel (silver/metallic)
-            glColor3f(0.7, 0.7, 0.7)  # Silver
-            glBegin(GL_TRIANGLE_FAN)
-            glVertex2f(*wheel_center)  # Center
-            for angle in range(0, 360, 10):
-                rad_angle = math.radians(angle)
-                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
-                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
-            glEnd()
-            
-            # Spokes
-            glColor3f(0.8, 0.8, 0.8)  # Light silver
-            glLineWidth(1.5)
-            glBegin(GL_LINES)
-            for angle in range(0, 360, 30):
-                rad_angle = math.radians(angle)
-                glVertex2f(wheel_center[0], wheel_center[1])  # Center
-                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
-                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
-            glEnd()
-            
-            # Wheel rim highlight
-            glColor3f(0.9, 0.9, 0.9)  # Almost white
-            glLineWidth(1.0)
-            glBegin(GL_LINE_LOOP)
-            for angle in range(0, 360, 10):
-                rad_angle = math.radians(angle)
-                glVertex2f(wheel_center[0] + wheel_radius * 0.85 * math.cos(rad_angle), 
-                          wheel_center[1] + wheel_radius * 0.85 * math.sin(rad_angle))
-            glEnd()
-            
-            # Hand rim
-            glColor3f(0.5, 0.5, 0.5)  # Gray
-            glLineWidth(2.0)
-            glBegin(GL_LINE_LOOP)
-            for angle in range(0, 360, 10):
-                rad_angle = math.radians(angle)
-                glVertex2f(wheel_center[0] + wheel_radius * 0.7 * math.cos(rad_angle), 
-                          wheel_center[1] + wheel_radius * 0.7 * math.sin(rad_angle))
-            glEnd()
-        
-        # Draw small front casters (small wheels)
-        caster_radius = wheel_radius * 0.25
-        caster_centers = [
-            (x + wheel_radius * 0.8, y + self.height * 0.2),  # Left caster
-            (x + chair_width - wheel_radius * 0.8, y + self.height * 0.2)  # Right caster
-        ]
-        
-        for caster_center in caster_centers:
-            # Caster wheel
-            glColor3f(0.3, 0.3, 0.3)  # Dark gray
-            glBegin(GL_TRIANGLE_FAN)
-            glVertex2f(*caster_center)  # Center
-            for angle in range(0, 360, 15):
-                rad_angle = math.radians(angle)
-                glVertex2f(caster_center[0] + caster_radius * math.cos(rad_angle), 
-                          caster_center[1] + caster_radius * math.sin(rad_angle))
-            glEnd()
-            
-            # Caster fork
-            glColor3f(0.5, 0.5, 0.5)  # Gray
-            glLineWidth(1.5)
-            glBegin(GL_LINES)
-            glVertex2f(caster_center[0], caster_center[1])  # Center
-            glVertex2f(caster_center[0], caster_center[1] + caster_radius * 2)  # Up to frame
-            glEnd()
-        
-        # Chair frame
-        frame_color = (0.3, 0.3, 0.8)  # Blue frame
-        
-        # Seat
-        glColor3f(*frame_color)
-        glBegin(GL_QUADS)
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.8)  # Back left
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.8)  # Back right
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.0)  # Front right
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.0)  # Front left
-        glEnd()
-        
-        # Backrest
-        glBegin(GL_QUADS)
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 1.8)  # Bottom left
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 1.8)  # Bottom right
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 3.0)  # Top right
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 3.0)  # Top left
-        glEnd()
-        
-        # Footrests
-        glColor3f(0.4, 0.4, 0.4)  # Dark gray
-        glBegin(GL_QUADS)
-        # Left footrest
-        glVertex2f(x + wheel_radius * 0.5, y + self.height * 0.3)  # Bottom left
-        glVertex2f(x + wheel_radius * 1.0, y + self.height * 0.3)  # Bottom right
-        glVertex2f(x + wheel_radius * 1.0, y + self.height * 0.4)  # Top right
-        glVertex2f(x + wheel_radius * 0.5, y + self.height * 0.4)  # Top left
-        glEnd()
-        
-        glBegin(GL_QUADS)
-        # Right footrest
-        glVertex2f(x + chair_width - wheel_radius * 1.0, y + self.height * 0.3)  # Bottom left
-        glVertex2f(x + chair_width - wheel_radius * 0.5, y + self.height * 0.3)  # Bottom right
-        glVertex2f(x + chair_width - wheel_radius * 0.5, y + self.height * 0.4)  # Top right
-        glVertex2f(x + chair_width - wheel_radius * 1.0, y + self.height * 0.4)  # Top left
-        glEnd()
-        
-        # Armrests
-        glColor3f(*frame_color)
-        # Left armrest
-        glBegin(GL_QUADS)
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 2.2)  # Bottom left
-        glVertex2f(x + wheel_radius * 0.9, y + wheel_radius * 2.2)  # Bottom right
-        glVertex2f(x + wheel_radius * 0.9, y + wheel_radius * 2.4)  # Top right
-        glVertex2f(x + wheel_radius * 0.4, y + wheel_radius * 2.4)  # Top left
-        glEnd()
-        
-        # Right armrest
-        glBegin(GL_QUADS)
-        glVertex2f(x + chair_width - wheel_radius * 0.9, y + wheel_radius * 2.2)  # Bottom left
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 2.2)  # Bottom right
-        glVertex2f(x + chair_width - wheel_radius * 0.4, y + wheel_radius * 2.4)  # Top right
-        glVertex2f(x + chair_width - wheel_radius * 0.9, y + wheel_radius * 2.4)  # Top left
-        glEnd()
-        
-        # Push handles
-        glColor3f(0.2, 0.2, 0.2)  # Dark gray
-        # Left handle
-        glBegin(GL_QUADS)
-        glVertex2f(x + wheel_radius * 0.5, y + wheel_radius * 3.0)  # Bottom
-        glVertex2f(x + wheel_radius * 0.6, y + wheel_radius * 3.0)  # Bottom
-        glVertex2f(x + wheel_radius * 0.6, y + wheel_radius * 3.3)  # Top
-        glVertex2f(x + wheel_radius * 0.5, y + wheel_radius * 3.3)  # Top
-        glEnd()
-        
-        # Right handle
-        glBegin(GL_QUADS)
-        glVertex2f(x + chair_width - wheel_radius * 0.6, y + wheel_radius * 3.0)  # Bottom
-        glVertex2f(x + chair_width - wheel_radius * 0.5, y + wheel_radius * 3.0)  # Bottom
-        glVertex2f(x + chair_width - wheel_radius * 0.5, y + wheel_radius * 3.3)  # Top
-        glVertex2f(x + chair_width - wheel_radius * 0.6, y + wheel_radius * 3.3)  # Top
+        radius = 8
+        glBegin(GL_TRIANGLE_FAN)
+        center_x = char_x + self.width/2
+        center_y = char_y + self.height - 5
+        glVertex2f(center_x, center_y)  # Center
+        for i in range(13):
+            angle = 2.0 * math.pi * i / 12
+            glVertex2f(center_x + radius * math.cos(angle),
+                    center_y + radius * math.sin(angle))
         glEnd()
 
 class Scene:
@@ -733,7 +466,6 @@ class Scene:
         draw_streetlight(680, 50)
 
         # Draw road and pavement last
-        draw_road()
         draw_pavement()
         
         for obstacle in self.obstacles:
@@ -1099,7 +831,7 @@ class ManageDialogue:
             {"id": "scene0_jump", "text": "and press SPACE to jump.", "x": 10, "y": 450},
             {"id": "scene0_color1", "text": "You can change color of obstacles by pressing on the following keys: ", "x": 10, "y": 450},
             {"id": "scene0_color2", "text": "G --> Grey(Default) R-->Red Y-->Yellow", "x": 10, "y": 450},
-            {"id": "scene0_intro", "text": "Scene 1: A Young Diagnosis", "x": 10, "y": 450},
+            {"id": "scene0_intro", "text": "Part 1: A Young Diagnosis", "x": 10, "y": 450},
             {"id": "scene0_1", "text": "This young patient was recently diagnosed with Multiple Sclerosis.", "x": 10, "y": 450},
             {"id": "scene0_2", "text": "Multiple Sclerosis (MS) is a chronic condition affecting the nervous system.", "x": 10, "y": 450},
             {"id": "scene0_3", "text": "At first, MS symptoms might seem mild.", "x": 10, "y": 450},
@@ -1118,6 +850,7 @@ class ManageDialogue:
         ]
     # part 2 (wheelchair transition)
         self.scene_dialogues[3] = [
+            {"id": "scene3_intro", "text": "Part 2: Still in Motion", "x": 10, "y": 450},
             {"id": "scene3_transition", "text": "Years have passed. Your MS has progressed.", "x": 10, "y": 450},
             {"id": "scene3_wheelchair1", "text": "Due to arising symptoms like muscle weakness and balance problems...", "x": 10, "y": 450},
             {"id": "scene3_wheelchair2", "text": "...You now use a wheelchair to get around.", "x": 10, "y": 450},
@@ -1374,7 +1107,7 @@ class Coin:
             
         return False
 
-class GameScenes:
+class ManageScenes:
     def __init__(self):
         self.player = Character(50, 100, 800, 600, character_type="walking")  # Start with walking character
         self.current_scene_index = 0  # Start with the first scene
@@ -1444,13 +1177,11 @@ class GameScenes:
         self.player.draw()
 
 def main():
-    pygame.init()
-    glutInit()
     screen = pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
     pygame.display.set_caption("WheelAware")
     
     # Initialize game objects
-    game_scene = GameScenes()
+    game_scene = ManageScenes()
     game = ManageDialogue()
     
     angle = 0
