@@ -1154,7 +1154,7 @@ class ManageScenes:
         #Draw the current scene and player.
         # Get the current scene and draw its background first
         current_scene = self.scenes[self.current_scene_index]
-        current_scene.draw()  # This assumes Scene class has a draw_background method
+        current_scene.draw() 
         
         # Then draw all obstacles including coins
         for obstacle in current_scene.obstacles:
@@ -1227,7 +1227,7 @@ def main():
             game.check_scene_dialogues(game_scene.current_scene_index)
         game.update(events, game_scene.current_scene_index, game_scene.player.x)
         
-        # Draw game elements (this will draw the background with proper building heights)
+        # Draw game elements 
         game_scene.draw()
         game.draw()
         
