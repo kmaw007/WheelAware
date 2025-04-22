@@ -247,15 +247,7 @@ class Character:
         self.y = window_height - y - height  # This flips the y-coordinate
         self.width = width
         self.height = height
-
-        # Different speeds for different character types
-        if character_type == "walking":
-            self.base_speed = 5  # Normal walking speed
-            self.speed = self.base_speed
-        else:  # wheelchair
-            self.base_speed = 1 # Slower base speed for wheelchair
-            self.speed = self.base_speed 
-
+        self.speed = 5  # Normal walking speed
         self.jump_power = -10
         self.velocity_y = 0
         self.gravity = 0.5
@@ -273,10 +265,8 @@ class Character:
         # Left/Right Movement 
         if keys[pygame.K_LEFT]:
             self.x -= self.speed
-            self.facing_right = False
         if keys[pygame.K_RIGHT]:
             self.x += self.speed
-            self.facing_right = True
 
         # Prevent going off-screen
         self.x = max(0, min(self.x, self.window_width - self.width))
@@ -290,8 +280,7 @@ class Character:
         self.velocity_y += self.gravity
         self.y += self.velocity_y
         
-        # Check vertical collision after movement
-        self.on_ground = False
+        # Check vertical collision after movement     
         for obstacle in obstacles:
             if obstacle.collides_with(self):
                 # If the character is on the ground, allow horizontal movement
@@ -699,12 +688,6 @@ class BumpyRoad:
                     # Reduce speed while on bumpy road
                     player.speed = player.original_speed * 0.7  # Reduce speed by 70%
                 
-                # Add a small bumping effect when moving
-                if player.velocity_y == 0:
-                    # More pronounced bumping for wheelchair
-                    bump_intensity = 2.0 if player.character_type == "wheelchair" else 1.5
-                    player.y += math.sin(pygame.time.get_ticks() * 0.01) * bump_intensity
-                
                 return True
         
         # When not on bumpy road, restore original speed if character is wheelchair user
@@ -748,7 +731,7 @@ class Pillar:
                 player.on_ground = True
                 return True
 
-            # Horizontal Collision
+            # Horizontal Collision (side collision)
             if char_x + char_width >= self.x and player.x < self.x:  # Moving right
                 player.x = self.x - char_width  # Stop at the left side of the pillar
             elif char_x <= self.x + self.width and player.x > self.x:  # Moving left
@@ -766,15 +749,13 @@ class DialogueBox:
         self.y = y
         self.width = width
         self.height = height
-        self.visible = True  # Track visibility of the dialogue box
-        self.created_time = pygame.time.get_ticks()  # Record when the box was created
-        self.last_key_time = 0  # Time when the last key was processed
+        self.visible = True  # Tracks visibility of the dialogue box
 
     def draw(self):
         if self.visible:
             # Enable transparency for the dialogue box
             glEnable(GL_BLEND)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) 
             
             # Draw the box background
             glColor4f(0.0, 0.0, 0.0, 0.7)  # Semi-transparent black (RGBA)
@@ -850,7 +831,7 @@ class ManageDialogue:
         self.scene_dialogues[5] = [
             {"id": "scene5_transition", "text": "Multiple Sclerosis affects mobility over time. Simple tasks can become difficult.", "x": 10, "y": 450},
             {"id": "scene5_transition1", "text": "Climbing these stairs was easy a long time ago...", "x": 10, "y": 450},
-            {"id": "scene5_transition2", "text": "...but now, they're an imposible barrier.", "x": 10, "y": 450},
+            {"id": "scene5_transition2", "text": "...but now, they're an impossible barrier.", "x": 10, "y": 450},
             {"id": "scene5_transition2", "text": "Especially with the lack of accibilty in many public spaces...", "x": 10, "y": 450},
             {"id": "scene5_transition2", "text": "...like the missing ramp here.", "x": 10, "y": 450},
             {"id": "scene5_transition3", "text": "Sadly, many places still forget about accessibility. ", "x": 10, "y": 450},
@@ -873,7 +854,7 @@ class ManageDialogue:
         self.dialogue_boxes.append({"id": dialogue_id, "box": new_box})
 
     def show_dialogue(self, dialogue_id):
-        #Show a specific dialogue by ID
+        # Show a specific dialogue by ID
         # Hide any currently visible dialogue
         self.dismiss_current_dialogue()
         
@@ -990,14 +971,14 @@ class Coin:
         glScalef(scale_x * self.scale, 1.0 * self.scale, 1.0)
         
         # Draw main coin body (gold)
-        self.draw_3d_coin(0, 0, self.size/2, self.alpha)
+        self.draw_coin(self.size/2, self.alpha)
         
         # Restore the matrix
         glPopMatrix()
         
         glDisable(GL_BLEND)
         
-    def draw_3d_coin(self, cx, cy, radius, alpha):
+    def draw_coin(self, radius, alpha):
         #Draw a 3D-looking coin with shading
         segments = 30
         inner_radius = radius * 0.85
@@ -1039,9 +1020,9 @@ class Coin:
         glEnd()
         
         # Draw a reflective highlight
-        self.draw_highlight(0, 0, radius * 0.5, alpha)
+        self.draw_highlight(radius * 0.5, alpha)
     
-    def draw_highlight(self, cx, cy, radius, alpha):
+    def draw_highlight(self, radius, alpha):
         #Draw a highlight on the coin to enhance 3D appearance
         segments = 20
         rot_rad = math.radians(self.rotation)
@@ -1070,7 +1051,7 @@ class Coin:
             return False
             
         # Convert player coordinates to match the OpenGL coordinate system
-        # In OpenGL y increases upward, but your player position y increases downward
+        # In OpenGL y increases upward, but the character's  y position increases downward
         player_y_converted = player.window_height - player.y - player.height
         
         # Center of the coin
@@ -1098,7 +1079,6 @@ class ManageScenes:
     def __init__(self):
         self.player = Character(50, 100, 800, 600, character_type="walking")  # Start with walking character
         self.current_scene_index = 0  # Start with the first scene
-        self.previous_scene_index = 0  # Track the previous scene
         self.scenes = [
             # Part 1 (walking) 
             Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350), Coin(270, 170), Coin(430, 270), Coin(600, 370)]),  
@@ -1110,10 +1090,9 @@ class ManageScenes:
             Scene([Stair(150, 50, 550, 350), Pillar(700,50,150,350)])
         ]
         self.scene_change = False  # Flag to track scene changes
-        self.wheelchair_transition_triggered = False  # Flag to track if we've done the wheelchair transition
+        self.wheelchair_transition_triggered = False  # Flag to track when a wheelchair transition happens
         
     def update(self, keys):
-        self.previous_scene_index = self.current_scene_index
         current_scene = self.scenes[self.current_scene_index]
         # Pass the current scene index to the move method
         self.player.move(keys, current_scene.obstacles, self.current_scene_index)
@@ -1135,23 +1114,22 @@ class ManageScenes:
 
         # Scene transition logic
         if self.player.x > 750:
-            self.current_scene_index = (self.current_scene_index + 1) % len(self.scenes)
+            self.current_scene_index = (self.current_scene_index + 1) 
             self.player.x = 50
             self.scene_change = True
             
             # Check if we're transitioning from scene 3 to scene 4 (index 2 to 3)
-            if self.previous_scene_index == 2 and self.current_scene_index == 3 and not self.wheelchair_transition_triggered:
+            if self.current_scene_index == 3 and not self.wheelchair_transition_triggered:
                 # Change to wheelchair character
                 self.player.character_type = "wheelchair"
-                self.player.base_speed = 2  # Set slower base speed
-                self.player.speed = self.player.base_speed  # Update current speed
+                self.player.speed = 2  # Set slower base speed
                 self.wheelchair_transition_triggered = True
                 
         else:
             self.scene_change = False
 
     def draw(self):
-        #Draw the current scene and player.
+        # Draw the current scene and player
         # Get the current scene and draw its background first
         current_scene = self.scenes[self.current_scene_index]
         current_scene.draw() 
@@ -1164,21 +1142,17 @@ class ManageScenes:
         self.player.draw()
 
 def main():
-    screen = pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
     pygame.display.set_caption("WheelAware")
     
     # Initialize game objects
     game_scene = ManageScenes()
-    game = ManageDialogue()
+    game_dialogues = ManageDialogue()
     
     angle = 0
     clock = pygame.time.Clock()
     running = True
     
     while running:
-        # Clear both color and depth buffer
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        
         # Handle events
         events = pygame.event.get()
         for event in events:
@@ -1194,7 +1168,7 @@ def main():
                 if isinstance(obj, Stair):
                     obj.color = (0.5, 0.0, 0.0) 
                 elif isinstance(obj, Ramp):
-                    obj.color = (0.5, 0.0, 0.0) 
+                    obj.color = (0.5, 0.0, 0.0)  
                 elif isinstance(obj, Pillar):
                     obj.color = (0.5, 0.0, 0.0)  
         if keys[pygame.K_y]: #if Y key is pressed
@@ -1214,30 +1188,21 @@ def main():
                 elif isinstance(obj, Pillar):
                     obj.color = (0.5,0.5,0.5)  
 
-        # Set up 2D rendering with bottom-left origin
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluOrtho2D(0, 800, 0, 600)  # Changed to use bottom-left origin
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
+        
         
         # Update and draw game elements
         game_scene.update(keys)
         if game_scene.scene_change:
-            game.check_scene_dialogues(game_scene.current_scene_index)
-        game.update(events, game_scene.current_scene_index, game_scene.player.x)
+            game_dialogues.check_scene_dialogues(game_scene.current_scene_index)
+        game_dialogues.update(events, game_scene.current_scene_index, game_scene.player.x)
         
         # Draw game elements 
         game_scene.draw()
-        game.draw()
+        game_dialogues.draw()
         
         # Draw 3D sun cube
-        setup_3d()
         draw_3d_sun(angle)
         angle += 1
-        
-        # Return to 2D for UI
-        setup_2d()
         
         pygame.display.flip()
         clock.tick(60)
