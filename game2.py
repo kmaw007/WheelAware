@@ -247,7 +247,7 @@ class Character:
         self.y = window_height - y - height  # This flips the y-coordinate
         self.width = width
         self.height = height
-        self.speed = 5  # Normal walking speed
+        self.speed = 4  # Normal walking speed
         self.jump_power = -10
         self.velocity_y = 0
         self.gravity = 0.5
@@ -1016,32 +1016,6 @@ class Coin:
             angle = 2.0 * math.pi * i / segments
             x = inner_radius * math.cos(angle)
             y = inner_radius * math.sin(angle)
-            glVertex2f(x, y)
-        glEnd()
-        
-        # Draw a reflective highlight
-        self.draw_highlight(radius * 0.5, alpha)
-    
-    def draw_highlight(self, radius, alpha):
-        #Draw a highlight on the coin to enhance 3D appearance
-        segments = 20
-        rot_rad = math.radians(self.rotation)
-        
-        # Highlight position shifts with rotation for 3D effect
-        highlight_x = radius * 0.5 * math.cos(rot_rad)
-        highlight_y = radius * 0.5 * math.sin(rot_rad)
-        
-        glBegin(GL_TRIANGLE_FAN)
-        # Bright center
-        glColor4f(1.0, 1.0, 1.0, alpha * 0.7)
-        glVertex2f(highlight_x, highlight_y)
-        
-        # Faded edges for smooth highlight
-        glColor4f(1.0, 1.0, 1.0, 0.0)
-        for i in range(segments + 1):
-            angle = 2.0 * math.pi * i / segments
-            x = highlight_x + (radius * 0.3) * math.cos(angle)
-            y = highlight_y + (radius * 0.3) * math.sin(angle)
             glVertex2f(x, y)
         glEnd()
 
